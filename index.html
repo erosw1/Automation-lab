@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Eros Automation Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -98,7 +99,7 @@ button .k{display:block;font-family:var(--mono);font-size:11px;color:var(--muted
 .checks .cd{display:block;font-family:var(--mono);font-size:11px;color:var(--muted)}
 .bar{height:4px;background:var(--raise);border-radius:2px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--ok);transition:width .3s}
-select,input[type="number"]{font:inherit;color:var(--fg);background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:7px 8px;width:100%;min-width:0}
+input.txt,select,input[type="number"]{font:inherit;color:var(--fg);background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:7px 8px;width:100%;min-width:0}
 input[type="range"]{width:100%;accent-color:var(--accent)}
 .faults{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .faults li{border-left:3px solid var(--bad);background:#2a1a1d;padding:6px 10px;border-radius:0 6px 6px 0;font-size:13px}
@@ -338,6 +339,7 @@ input[type="range"]{width:100%;accent-color:var(--accent)}
     </section>
 
     <section class="pane" id="pane-io" role="tabpanel">
+      <section class="card" id="extCard"></section>
       <section class="card">
         <h2>I/O tags <small id="ioScene"></small></h2>
         <p class="hint">Every sensor and actuator in this scene is already connected to the CPU. <b>Force</b> overrides a signal, like forcing in TIA Portal: forced inputs replace the field signal, forced outputs drive the actuator even in STOP. The CPU's MAINT LED lights while anything is forced.</p>
@@ -451,6 +453,13 @@ const forcing=()=>plc.forceI.some(v=>v!=null)||plc.forceQ.some(v=>v!=null);
 const online=()=>plc.powered&&plc.run;
 function plcScan(dt){
   for(let i=0;i<NI;i++) plc.I[i]=plc.forceI[i]!=null?plc.forceI[i]:(plc.field[i]?1:0);
+  if(EXT.on){ extExchange();
+    if(!plc.powered){ plc.Q.fill(0); plc.out.fill(0); plc.wasRun=false; return; }
+    const fresh=EXT.state==='on'&&performance.now()-EXT.lastData<1500;
+    for(let i=0;i<NQ;i++) plc.Q[i]=fresh&&EXT.Q[i]?1:0;
+    plc.scans++; plc.cycleMs=dt*1000; plc.wasRun=false;
+    for(let i=0;i<NQ;i++) plc.out[i]=plc.forceQ[i]!=null?plc.forceQ[i]:plc.Q[i];
+    return; }
   if(!plc.powered){ plc.Q.fill(0); plc.out.fill(0); plc.wasRun=false; return; }
   if(plc.run){
     if(!plc.wasRun) coldStart();
@@ -459,6 +468,81 @@ function plcScan(dt){
   } else plc.Q.fill(0);
   plc.wasRun=plc.run;
   for(let i=0;i<NQ;i++) plc.out[i]=plc.forceQ[i]!=null?plc.forceQ[i]:plc.Q[i];
+}
+
+/* ================= external PLC through the PLC bridge (link driver) ================= */
+const EXT={mode:store.get('plcfab-ext-mode','direct')==='bridge'?'bridge':'direct',dl:null,on:false,url:store.get('plcfab-ext-url','ws://localhost:8765/ws'),ws:null,state:'off',msg:'',Q:zeros(NQ),lastData:0,sentI:new Array(NI).fill(null),sentAI:[null,null],tAI:0,tAll:0,peers:[]};
+function extSend(m){ if(EXT.ws&&EXT.ws.readyState===1) EXT.ws.send(JSON.stringify(m)); }
+function extInfo(){ const s=app.scene; return {role:'factory',app:'Eros Automation Lab',scene:s?s.name:'',sceneId:s?s.id:'',cpu:EXT.on?'external':'internal',
+  tags:s?s.tags.map(t=>({addr:t.addr,name:t.name||'',kind:t.kind||'',dir:t.dir||''})):[],program:progClone(plc.prog)}; }
+function extPublish(){ if(EXT.dl){ EXT.dl.refresh(); return; } if(EXT.state==='on') extSend({op:'publish',info:extInfo()}); }
+function extWrite(addr,type,value){ if(EXT.dl) EXT.dl.write(addr,type,value); else extSend({op:'write',tag:{name:addr,addr,type},value}); }
+/* ===== Direct link: pages open in the same browser talk over a BroadcastChannel, no bridge needed ===== */
+function makeDirectLink(getInfo,onWrite,onPeers){
+  const id=Math.random().toString(36).slice(2),bc=new BroadcastChannel('eros-plc-link'),peers={},owner={},mine={};let lastSig='';
+  const post=m=>{try{bc.postMessage(Object.assign({from:id},m));}catch(e){}};
+  const sig=()=>JSON.stringify(Object.keys(peers).sort().map(k=>[k,peers[k].sig]));
+  const changed=()=>{const s=sig();if(s!==lastSig){lastSig=s;onPeers();}};
+  const drop=pid=>{delete peers[pid];for(const a in owner)if(owner[a]===pid){delete owner[a];onWrite(a,null,0,pid);}changed();};
+  const resend=()=>{post({t:'info',info:getInfo()});for(const a in mine)post({t:'w',addr:a,type:mine[a].type,value:mine[a].value});};
+  bc.onmessage=e=>{const m=e.data;if(!m||m.from===id)return;
+    if(m.t==='info'||m.t==='hello'){const isNew=!peers[m.from];peers[m.from]={info:m.info,seen:Date.now(),sig:JSON.stringify(m.info||{}).length+':'+((m.info&&m.info.scene)||'')+':'+((m.info&&m.info.cpu)||'')+':'+((m.info&&m.info.running)?1:0)};if(isNew||m.t==='hello')resend();changed();}
+    else if(m.t==='w'){if(peers[m.from])peers[m.from].seen=Date.now();owner[m.addr]=m.from;onWrite(m.addr,m.type,m.value,m.from);}
+    else if(m.t==='bye')drop(m.from);};
+  const hb=setInterval(()=>{post({t:'info',info:getInfo()});const now=Date.now();for(const p in peers)if(now-peers[p].seen>10000)drop(p);},700);
+  const bye=()=>post({t:'bye'});window.addEventListener('pagehide',bye);
+  post({t:'hello',info:getInfo()});
+  return {write(addr,type,value){mine[addr]={type,value};post({t:'w',addr,type,value});},peers:()=>Object.values(peers).map(p=>p.info),refresh(){post({t:'info',info:getInfo()});},hello(){post({t:'hello',info:getInfo()});},
+    close(){bye();clearInterval(hb);window.removeEventListener('pagehide',bye);try{bc.close();}catch(e){}}};
+}
+
+const extPeer=()=>EXT.peers.find(p=>p&&p.role==='plc');
+function extConnect(){
+  if(EXT.mode==='direct'){
+    if(typeof BroadcastChannel==='undefined'){ EXT.state='err'; EXT.msg='This browser cannot link pages directly. Use the PLC bridge instead.'; renderExt(); return; }
+    if(EXT.dl) EXT.dl.close();
+    EXT.dl=makeDirectLink(extInfo,(addr,type,v)=>{ const m=/^Q0\.(\d)$/.exec(addr); if(m&&+m[1]<NQ){ EXT.Q[+m[1]]=v?1:0; EXT.lastData=performance.now(); } },()=>{ const had=!!extPeer(); EXT.peers=EXT.dl?EXT.dl.peers():[]; if(extPeer()&&!had) toast('External PLC found: '+(extPeer().app||'PLC')+'.'); renderExt(); });
+    EXT.state='on'; EXT.msg=''; EXT.sentI.fill(null); EXT.sentAI=[null,null]; renderExt(); toast('Linked in this browser. Waiting for the PLC.'); return; }
+  const inp=$('#extUrl'); if(inp){ EXT.url=inp.value.trim()||'ws://localhost:8765/ws'; store.set('plcfab-ext-url',EXT.url); }
+  if(EXT.ws) try{ EXT.ws.close(); }catch(e){}
+  EXT.state='connecting'; EXT.msg='Connecting to the PLC bridge…'; renderExt();
+  let ws; try{ ws=new WebSocket(EXT.url); }catch(e){ EXT.state='err'; EXT.msg='That bridge address is not valid.'; renderExt(); return; }
+  EXT.ws=ws; let opened=false;
+  const to=setTimeout(()=>{ if(!opened){ try{ ws.close(); }catch(e){} extFail(); } },5000);
+  ws.onopen=()=>{ opened=true; clearTimeout(to); extSend({op:'hello'}); extSend({op:'connect',driver:'link'}); };
+  ws.onerror=()=>{ if(!opened){ clearTimeout(to); extFail(); } };
+  ws.onclose=()=>{ if(EXT.ws!==ws) return; EXT.ws=null; EXT.peers=[]; EXT.Q.fill(0); if(EXT.state==='on'){ EXT.state='err'; EXT.msg='The bridge closed the connection. Is it still running?'; } renderExt(); };
+  ws.onmessage=ev=>{ let m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
+    if(m.op==='status'&&m.connected){ EXT.state='on'; EXT.msg=''; EXT.sentI.fill(null); EXT.sentAI=[null,null];
+      extSend({op:'subscribe',tags:[0,1,2,3,4,5].map(i=>({name:'Q0.'+i,addr:'Q0.'+i,type:'Bool'})),period_ms:30}); extPublish(); renderExt(); toast('Connected to the PLC bridge.'); }
+    else if(m.op==='linkinfo'){ const had=!!extPeer(); EXT.peers=m.peers||[]; if(extPeer()&&!had) toast('External PLC found: '+(extPeer().app||'PLC')+'.'); renderExt(); }
+    else if(m.op==='data'){ const v=m.values||{}; for(let i=0;i<NQ;i++) EXT.Q[i]=v['Q0.'+i]?1:0; EXT.lastData=performance.now(); }
+    else if(m.op==='error'){ EXT.msg=esc(m.msg); if(m.req==='connect') EXT.state='err'; renderExt(); } };
+}
+function extFail(){ EXT.state='err'; EXT.ws=null; EXT.msg='Could not reach the PLC bridge at '+esc(EXT.url)+'. Start it on this computer (it comes with Eros’s Block Diagram Editor: PLC tab, Download the bridge). If it is running, open this page from the bridge instead: put the HTML file in the bridge folder and open <b>http://localhost:8765/pages</b>.'; renderExt(); }
+function extDisconnect(){ if(EXT.dl){ const d=EXT.dl; EXT.dl=null; d.close(); } const ws=EXT.ws; EXT.ws=null; EXT.state='off'; EXT.msg=''; EXT.peers=[]; EXT.Q.fill(0); if(ws) try{ ws.close(); }catch(e){} renderExt(); }
+function setExt(on){ EXT.on=!!on; if(EXT.on&&EXT.state==='off') extConnect(); if(!EXT.on){ plc.wasRun=false; } extPublish(); ioDirty=true; renderExt(); }
+/* send the sensors: bits as soon as they change, analog values every 50 ms, everything once a second */
+function extExchange(){
+  if(EXT.state!=='on') return; const now=performance.now(), all=now-EXT.tAll>1000; if(all) EXT.tAll=now;
+  for(let i=0;i<NI;i++){ const v=plc.I[i]?1:0; if(all||v!==EXT.sentI[i]){ EXT.sentI[i]=v; extWrite('I0.'+i,'Bool',!!v); } }
+  if(all||now-EXT.tAI>50){ EXT.tAI=now; for(let k=0;k<2;k++){ const v=plc.AI[k]|0; if(all||v!==EXT.sentAI[k]){ EXT.sentAI[k]=v; const a='IW'+(64+2*k); extWrite(a,'Int',v); } } }
+}
+function renderExt(){
+  const el=$('#extCard'); if(!el) return; const on=EXT.state==='on', p=extPeer();
+  const st=!EXT.on?'internal CPU':on?(p?'linked':'waiting for a PLC'):EXT.state==='connecting'?'connecting':'offline';
+  el.innerHTML=`<h2>External PLC <small>${st}</small></h2>
+    <p class="hint">Let another PLC run this machine, for example the soft PLC in <b>Eros’s Block Diagram Editor</b>, through the PLC bridge on this computer. This CPU’s own program is then bypassed. The sensors go out on %I0.0–%I0.7 and %IW64/%IW66, and the actuators follow %Q0.0–%Q0.5 from the external PLC.</p>
+    <div class="seg" role="radiogroup" aria-label="Who runs the program"><button type="button" role="radio" data-ext="0" class="${EXT.on?'':'on'}" aria-checked="${!EXT.on}"><span class="k">This page</span>Internal CPU</button><button type="button" role="radio" data-ext="1" class="${EXT.on?'on':''}" aria-checked="${EXT.on}"><span class="k">Through the bridge</span>External PLC</button></div>
+    <div class="seg" role="radiogroup" aria-label="How to connect"><button type="button" role="radio" data-extm="direct" class="${EXT.mode==='direct'?'on':''}" aria-checked="${EXT.mode==='direct'}"${on?' disabled':''}><span class="k">No install</span>Same browser</button><button type="button" role="radio" data-extm="bridge" class="${EXT.mode==='bridge'?'on':''}" aria-checked="${EXT.mode==='bridge'}"${on?' disabled':''}><span class="k">Python</span>PLC bridge</button></div>
+    ${EXT.mode==='direct'?'<p class="hint">Works when the editor is open in this same Chrome as a downloaded file (or both pages come from the bridge). Keep the two in separate windows side by side.</p>':`<div class="setrow"><label for="extUrl">Bridge address</label><input id="extUrl" class="txt" value="${esc(EXT.url)}" spellcheck="false"${on||EXT.state==='connecting'?' disabled':''}></div>`}
+    <div class="row">${on||EXT.state==='connecting'?'<button type="button" id="extOff">Disconnect</button>':'<button type="button" id="extOn">Connect</button>'}</div>
+    ${on?`<div class="status"><div class="chip"><span class="dot ${p?'ok':'warn'}"></span><span class="lbl">PLC</span><b>${p?esc(p.app||'connected'):'none yet'}</b></div><div class="chip"><span class="dot ${performance.now()-EXT.lastData<1500?'ok':''}"></span><span class="lbl">Outputs</span><b id="extQ">${EXT.Q.join('')}</b></div></div>`:''}
+    ${on&&!p?'<p class="hint">In the editor open the <b>PLC [Ladder]</b> tab and press <b>Link to the factory</b> under Machine link. It can load this scene’s tags and example program for you.</p>':''}
+    ${EXT.msg?`<p class="hint" style="color:${EXT.state==='err'?'var(--bad)':'var(--muted)'}">${EXT.msg}</p>`:''}`;
+  el.querySelectorAll('[data-ext]').forEach(b=>b.onclick=()=>setExt(b.dataset.ext==='1'));
+  el.querySelectorAll('[data-extm]').forEach(b=>b.onclick=()=>{ EXT.mode=b.dataset.extm; store.set('plcfab-ext-mode',EXT.mode); renderExt(); });
+  const a=$('#extOn'); if(a) a.onclick=extConnect; const o=$('#extOff'); if(o) o.onclick=extDisconnect;
 }
 
 /* ================= program model helpers ================= */
@@ -534,7 +618,7 @@ function mutate(fn,keepSel){
   if(!keepSel && LD.sel && !getSelObj()) LD.sel=null;
   saveProgram(); renderLadder();
 }
-function saveProgram(){ if(app.scene) store.set('plcfab-prog-'+app.scene.id,progClone(plc.prog)); }
+function saveProgram(){ if(app.scene) store.set('plcfab-prog-'+app.scene.id,progClone(plc.prog)); clearTimeout(saveProgram.t); saveProgram.t=setTimeout(()=>{ try{ extPublish(); }catch(e){} },400); }
 
 function contactSVG(el,x,y,key,segIdx){
   const k=key, p=[];
@@ -870,7 +954,7 @@ function updateLabels(list,show){
     if(_pv.z>1||_pv.x<-1.05||_pv.x>1.05||_pv.y<-1.05||_pv.y>1.05){ if(L.d.style.visibility!=='hidden') L.d.style.visibility='hidden'; continue; }
     if(L.d.style.visibility) L.d.style.visibility='';
     const v=tagValue(L.t); let key;
-    if(L.t.dir==='AI'){ key=`${v} · ${percentOf(v)} %`; } else key=v?'1':'0';
+    if(L.t.dir==='AI'){ key=L.t.fmt?`${v} · ${L.t.fmt(v)}`:`${v} · ${percentOf(v)} %`; } else key=v?'1':'0';
     if(key!==L.last){ L.last=key; if(L.t.dir==='AI'){ L.em.textContent=key; L.w=0; } else { L.d.classList.toggle('on',!!v); L.em.textContent=''; } }
     if(!L.w){ L.w=L.d.offsetWidth||90; L.h=L.d.offsetHeight||20; }
     vis.push({L,x:(_pv.x*0.5+0.5)*w,y:(-_pv.y*0.5+0.5)*h});
@@ -1988,11 +2072,13 @@ function makeFactory(def){
       setNdc(e); const u=pickFrom(W.picks); if(!u) return;
       if(u.kind==='pbtn'){ const b=u.panel.buttons.find(x=>x.id===u.id); if(b.type==='estop'){ u.panel.latched[u.id]=!u.panel.latched[u.id]; toast(u.panel.latched[u.id]?'Emergency stop pressed and latched. Click it again to release.':'Emergency stop released.' ,u.panel.latched[u.id]); } return; }
       if(u.kind==='plc'){ api.lookPLC(); return; }
+      if(u.kind==='act'&&u.fn){ u.fn(); return; }
       if(u.kind==='tag'&&u.addr&&u.addr[0]==='Q') jog(u.addr);
     },
     pointerMove(e){ setNdc(e); const u=e.pointerType==='touch'?null:pickFrom(W.picks); renderer.domElement.style.cursor=u?'pointer':''; let html='';
       if(u){ if(u.kind==='pbtn'){ const b=u.panel.buttons.find(x=>x.id===u.id); const t=tags.find(x=>x.addr===b.addr); html=`<b>${b.addr}</b>${esc(t?t.name:b.label)} · ${b.type==='estop'?'click to latch / release':'hold to press'}`; }
         else if(u.kind==='plc') html='<b>PLC</b>SIMATIC S7-1200 · click to look closer';
+        else if(u.kind==='act') html=u.tip();
         else if(u.kind==='tag'&&u.addr){ const t=tags.find(x=>x.addr===u.addr); const v=tagValue({addr:u.addr}); html=`<b>${u.addr}</b>${esc(t?t.name:'')} · ${esc(t?t.kind:'')} · ${v}`; } }
       showTip(e,html); },
     pointerLeave(){},
@@ -2169,7 +2255,7 @@ const SCENE_B=makeFactory({
 
 /* ================= SCENE 3: Tank level control (analog input) ================= */
 const SCENE_C=makeFactory({
-  id:'c',num:'3',name:'Tank level control',
+  id:'c',num:'3',name:'Tank level',
   env:{cell:[-3.0,2.8,-2.0,2.2],wallZ:-3.6,cx:0,cz:0},
   cam:{pos:[2.3,3.5,4.6],target:[0,1.0,0]}, focus:[-2.6,2.2,-1.5,1.7],
   build(W){
@@ -2276,8 +2362,162 @@ const SCENE_C=makeFactory({
   }
 });
 
+/* ================= SCENE 4: Cold room refrigeration ================= */
+const T2RAW=t=>Math.round(clamp((t+30)/50,0,1)*27648), RAW2T=r=>r/27648*50-30;
+const fmtC=r=>{ const t=RAW2T(r); return (t>=0?'+':'')+t.toFixed(1)+' °C'; };
+const SCENE_D=makeFactory({
+  id:'d',num:'4',name:'Cold room',
+  env:{cell:[-3.3,2.6,-1.9,2.3],wallZ:-3.4,cx:-0.3,cz:0},
+  cam:{pos:[1.4,4.4,5.4],target:[-0.2,0.9,0]}, focus:[-3.0,2.4,-1.5,1.9],
+  build(W){
+    const R={Tr:16,Te:16,ice:0,P:8,trip:false,door:false,amb:30,cmd:false,cf:false,ef:false,heater:false,comp:false,lastStop:-99,efA:0,cfA:0,doorT:0,defT:0,dispT:-1};
+    W.ref=R; const sc=W.sc, g=new THREE.Group(); sc.add(g);
+    const RW=2.6, RD=2.0, RH=2.2, X0=0.1;
+    const wallM=std(0xe8ecef,{roughness:0.6}), edgeM=std(0xb9c0c7,{metalness:0.5,roughness:0.4});
+    const glass=new THREE.MeshStandardMaterial({color:0xcfe6f5,transparent:true,opacity:0.14,roughness:0.05,depthWrite:false,side:THREE.DoubleSide});
+    mesh(bgeo(RW,0.06,RD),std(0xd5dadf,{roughness:0.7}),X0,0.03,0,g);
+    mesh(bgeo(RW,RH,0.08),wallM,X0,RH/2,-RD/2,g);
+    mesh(bgeo(0.08,RH,RD),wallM,X0-RW/2,RH/2,0,g);
+    // right wall with a door opening (z from 0.05 to 0.95)
+    mesh(bgeo(0.08,RH,1.0),wallM,X0+RW/2,RH/2,-0.5,g); mesh(bgeo(0.08,0.2,0.9),wallM,X0+RW/2,RH-0.1,0.5,g);
+    const roof=new THREE.Mesh(bgeo(RW,0.06,RD),glass); roof.position.set(X0,RH,0); g.add(roof);
+    const front=new THREE.Mesh(new THREE.PlaneGeometry(RW,RH),glass); front.position.set(X0,RH/2,RD/2); g.add(front);
+    [[X0-RW/2,RD/2],[X0+RW/2,RD/2]].forEach(([x,z])=>mesh(bgeo(0.09,RH,0.09),edgeM,x,RH/2,z,g));
+    mesh(bgeo(RW+0.09,0.09,0.09),edgeM,X0,RH,RD/2,g);
+    const sign=labelPlane('COLD ROOM  ·  +2 °C',0.12,{bg:'#1d4f7a',color:'#e3f1ff',fs:44}); sign.position.set(X0,RH+0.12,RD/2+0.05); g.add(sign);
+    W.airM=new THREE.MeshBasicMaterial({color:0x6fb6ff,transparent:true,opacity:0.1,depthWrite:false});
+    mesh(bgeo(RW-0.2,RH-0.15,RD-0.2),W.airM,X0,RH/2,0,g,false);
+    for(const [px,pz] of [[-0.65,-0.3],[0.15,-0.35],[-0.55,0.45]]){ mesh(bgeo(0.8,0.1,0.8),std(0x9b7a4d,{roughness:0.9}),X0+px,0.11,pz,g);
+      for(let i=0;i<4;i++) mesh(bgeo(0.36,0.32,0.36),boxMat(),X0+px+(i%2?0.19:-0.19),0.32+(i>1?0.32:0)*0,pz+(i<2?0.19:-0.19),g); }
+    // evaporator (unit cooler) on the back wall
+    const ev=new THREE.Group(); ev.position.set(X0+0.2,1.78,-RD/2+0.28); g.add(ev);
+    mesh(bgeo(1.3,0.38,0.42),std(0xdfe3e7,{roughness:0.5}),0,0,0,ev);
+    W.evapGlowM=std(0x3a3f45,{roughness:0.6,emissive:0x000000}); mesh(bgeo(1.2,0.3,0.02),W.evapGlowM,0,0,-0.2,ev,false);
+    W.frostM=new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:0,roughness:0.9}); mesh(bgeo(1.22,0.32,0.03),W.frostM,0,0,-0.19,ev,false);
+    W.evFans=[-0.32,0.32].map(x=>{ mesh(new THREE.TorusGeometry(0.13,0.012,8,24),FM.dark,x,0,0.215,ev); const f=new THREE.Group(); f.position.set(x,0,0.22); ev.add(f);
+      for(let k=0;k<4;k++){ const b=mesh(bgeo(0.035,0.11,0.006),FM.dark,0,0.06,0,f,false); const p=new THREE.Group(); p.rotation.z=k*Math.PI/2; p.add(b); f.add(p); } return f; });
+    const evHit=mesh(bgeo(1.3,0.38,0.42),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}),0,0,0,ev,false); evHit.userData={kind:'tag',addr:'Q0.2'}; W.picks.push(evHit);
+    // door
+    const hinge=new THREE.Group(); hinge.position.set(X0+RW/2+0.04,0,0.95); g.add(hinge);
+    const doorM=std(0xf3f5f7,{roughness:0.5}); const door=mesh(bgeo(0.06,RH-0.22,0.9),doorM,0,(RH-0.22)/2+0.02,-0.45,hinge);
+    mesh(bgeo(0.03,0.32,0.05),FM.steel,0.05,1.0,-0.8,hinge);
+    door.userData={kind:'act',fn:()=>{ R.door=!R.door; },tip:()=>`<b>Door</b>click to ${R.door?'close':'open'} · door switch %I0.3`}; W.picks.push(door); W.hinge=hinge;
+    // room temperature display beside the door
+    W.dispCv=document.createElement('canvas'); W.dispCv.width=256; W.dispCv.height=128; W.dispTex=new THREE.CanvasTexture(W.dispCv); W.dispTex.encoding=THREE.sRGBEncoding;
+    const disp=mesh(new THREE.PlaneGeometry(0.34,0.17),new THREE.MeshBasicMaterial({map:W.dispTex}),X0+RW/2+0.045,1.55,-0.25,g,false); disp.rotation.y=Math.PI/2;
+    mesh(bgeo(0.03,0.08,0.06),std(0x2f353c),X0-RW/2+0.06,1.4,-0.2,g); W.rsAnch=V3(X0-RW/2+0.1,1.55,-0.2);
+    // condensing unit outside, on the left
+    const cu=new THREE.Group(); cu.position.set(-2.05,0,0.1); g.add(cu);
+    mesh(bgeo(1.0,0.08,0.7),FM.dark,0,0.04,0,cu);
+    mesh(bgeo(1.0,0.05,0.7),std(0x9aa3ab,{metalness:0.4}),0,0.95,0,cu);
+    [[-0.48,-0.33],[0.48,-0.33],[-0.48,0.33],[0.48,0.33]].forEach(([x,z])=>mesh(bgeo(0.04,0.9,0.04),FM.steel,x,0.5,z,cu));
+    const comp=mesh(cgeo(0.15,0.15,0.4,24),std(0x2f6b4a,{roughness:0.45,metalness:0.3}),-0.2,0.3,0.05,cu); comp.userData={kind:'tag',addr:'Q0.0'}; W.picks.push(comp);
+    mesh(new THREE.SphereGeometry(0.15,24,12,0,Math.PI*2,0,Math.PI/2),std(0x2f6b4a,{roughness:0.45,metalness:0.3}),-0.2,0.5,0.05,cu);
+    const coilT=canvasTex(128,128,(c,w,h)=>{ c.fillStyle='#6f7880'; c.fillRect(0,0,w,h); c.fillStyle='#4b535a'; for(let x=0;x<w;x+=6) c.fillRect(x,0,2,h); },{repeat:true}); coilT.repeat.set(4,3);
+    mesh(bgeo(0.9,0.75,0.04),new THREE.MeshStandardMaterial({map:coilT,roughness:0.6,metalness:0.4}),0,0.5,-0.33,cu);
+    const cfr=mesh(new THREE.TorusGeometry(0.22,0.015,8,32),FM.dark,0.25,0.5,-0.36,cu); cfr.rotation.y=0;
+    W.cFan=new THREE.Group(); W.cFan.position.set(0.25,0.5,-0.37); cu.add(W.cFan);
+    for(let k=0;k<3;k++){ const p=new THREE.Group(); p.rotation.z=k*2*Math.PI/3; mesh(bgeo(0.07,0.19,0.008),FM.dark,0,0.1,0,p,false); W.cFan.add(p); }
+    const cfHit=mesh(cgeo(0.24,0.24,0.06,16),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}),0.25,0.5,-0.36,cu,false); cfHit.rotation.x=Math.PI/2; cfHit.userData={kind:'tag',addr:'Q0.1'}; W.picks.push(cfHit);
+    mesh(bgeo(0.07,0.1,0.05),std(0x2f353c),0.3,0.75,0.34,cu); W.hpLedM=std(0x203020); mesh(bgeo(0.02,0.012,0.02),W.hpLedM,0.3,0.81,0.34,cu,false);
+    const lab=labelPlane('CONDENSING UNIT',0.05,{bg:'#20262d',color:'#dfe5ea',fs:40}); lab.position.set(0,1.05,0.36); cu.add(lab);
+    const pipeM=std(0xb87333,{metalness:0.7,roughness:0.35});
+    const pipe=(a,b,r)=>{ const len=a.distanceTo(b); const m=mesh(cgeo(r||0.018,r||0.018,len,10),pipeM,(a.x+b.x)/2,(a.y+b.y)/2,(a.z+b.z)/2,g); m.quaternion.setFromUnitVectors(V3(0,1,0),b.clone().sub(a).normalize()); };
+    [[-0.05,0.022],[0.05,0.014]].forEach(([dz,r])=>{ pipe(V3(-1.65,0.3,0.1+dz),V3(-1.65,2.0,0.1+dz),r); pipe(V3(-1.65,2.0,0.1+dz),V3(X0-RW/2,2.0,0.1+dz),r); pipe(V3(X0-RW/2,2.0,0.1+dz),V3(X0-0.35,2.0,-RD/2+0.3+dz),r); });
+    addPanel(W,{x:1.95,z:1.55,rot:-0.5,buttons:[...BTN3,{id:'defrost',type:'no',label:'DEFROST',color:0xe0a224,addr:'I0.5'}],lamps:[{label:'RUN',color:0x2ee06a,addr:'Q0.5'},{label:'DEFROST',color:0xffb21a,addr:'Q0.3'},{label:'ALARM',color:0xff3b30,addr:'Q0.4'}]});
+    addECab(W,{x:-2.65,z:-1.25,rot:0.35});
+    panelInputs(W);
+    W.inputs['I0.3']=()=>R.door; W.inputs['I0.4']=()=>!R.trip; W.inputs['I0.5']=()=>W.panel.val('defrost');
+    W.ai[0]=()=>clamp(T2RAW(R.Tr)+Math.round((Math.random()-0.5)*16),0,27648); W.ai[1]=()=>clamp(T2RAW(R.Te)+Math.round((Math.random()-0.5)*16),0,27648);
+    W.outputs['Q0.0']=v=>R.cmd=v; W.outputs['Q0.1']=v=>R.cf=v; W.outputs['Q0.2']=v=>R.ef=v; W.outputs['Q0.3']=v=>R.heater=v;
+    W.extra=h=>{
+      const f=W.flags, st=W.stats;
+      const running=R.cmd&&!R.trip;
+      if(running&&!R.comp){ st.starts=(st.starts||0)+1; if(W.t-R.lastStop<8&&W.t>1){ st.short=(st.short||0)+1; if(st.short<=3) toast('Compressor short-cycled: it restarted less than 8 s after stopping.',true); } }
+      if(!running&&R.comp) R.lastStop=W.t;
+      R.comp=running;
+      const tgtP=running?(R.cf?14:26):8; R.P+=(tgtP-R.P)*Math.min(1,0.35*h);
+      if(!R.trip&&R.P>=22){ R.trip=true; st.trips=(st.trips||0)+1; toast('High-pressure switch tripped: the condenser fan must run with the compressor.',true); }
+      if(R.trip&&R.P<15) R.trip=false;
+      const hx=(R.ef&&!R.heater)?0.02/(1+2*R.ice):0.003;
+      const q=hx*(R.Te-R.Tr);
+      let dTe=-3*q;
+      if(running) dTe+=0.25*(-28-R.Te);
+      if(R.heater){ if(R.ice>0&&R.Te>=0){ R.Te=Math.max(R.Te,0.2); R.ice=Math.max(0,R.ice-0.06*h); } else dTe+=2.5; }
+      R.Te=Math.min(30,R.Te+dTe*h);
+      if(running&&R.Te<-2) R.ice=Math.min(1.5,R.ice+0.008*h*(R.ef?1:0.5));
+      if(R.Te>1&&!R.heater) R.ice=Math.max(0,R.ice-0.002*h);
+      R.Tr+=(0.004*(R.amb-R.Tr)+(R.door?0.03*(R.amb-R.Tr):0)+q+(R.heater?0.012:0)+(R.ef?0.002:0))*h;
+      R.efA+=(R.ef?22:0)*h; R.cfA+=(R.cf&&running?26:(R.cf?20:0))*h;
+      const inBand=R.Tr>=-0.5&&R.Tr<=5.5; f.streak=(inBand&&plc.out[5])?(f.streak||0)+h:0; f.best=Math.max(f.best||0,f.streak);
+      R.doorT=R.door?R.doorT+h:0; if(R.doorT>10&&plc.out[4]) f.doorAlarm=true;
+      if(R.heater&&!running){ R.defT+=h; if(R.defT>3&&R.ice<0.05&&R.Te>2) f.defrost=true; } else R.defT=0;
+      if(plc.out[5]) f.runT=(f.runT||0)+h;
+    };
+    W.track=()=>trackRun(W,5,'start',['stop','estop']);
+    W.extraVis=()=>{
+      W.hinge.rotation.y+=((R.door?-1.45:0)-W.hinge.rotation.y)*0.15;
+      W.evFans.forEach(f=>f.rotation.z=-R.efA); W.cFan.rotation.z=R.cfA;
+      W.frostM.opacity=Math.min(0.85,R.ice*0.8);
+      const glow=R.heater&&R.Te>0?0xff5a1f:0; W.evapGlowM.emissive.setHex(glow); W.evapGlowM.emissiveIntensity=glow?Math.min(1.2,0.3+R.Te/20):0;
+      const k=clamp((R.Tr+5)/30,0,1); W.airM.color.setRGB(0.35+0.6*k,0.6+0.1*k,1-0.75*k); W.airM.opacity=0.08+0.05*Math.abs(k-0.25);
+      W.hpLedM.emissive.setHex(R.trip?0xff3020:0); W.hpLedM.emissiveIntensity=R.trip?1.6:0;
+      if(Math.abs(W.t-R.dispT)>0.4||W.t<R.dispT){ R.dispT=W.t; const c=W.dispCv.getContext('2d'); c.fillStyle='#0b1015'; c.fillRect(0,0,256,128); c.fillStyle='#5fd0ff'; c.font='700 62px "JetBrains Mono", monospace'; c.textAlign='center'; c.fillText((R.Tr>=0?'+':'')+R.Tr.toFixed(1)+'°',128,78); c.font='600 20px "JetBrains Mono", monospace'; c.fillStyle='#8fa3b5'; c.fillText('ROOM °C',128,112); W.dispTex.needsUpdate=true; }
+    };
+  },
+  reset(W){ Object.assign(W.ref,{Tr:16,Te:16,ice:0,P:8,trip:false,door:false,comp:false,lastStop:-99,doorT:0,defT:0,dispT:-1}); },
+  tags:(W)=>[...PANEL_TAGS,
+    {addr:'I0.3',name:'Door open',kind:'Door switch, 1 while the door is open',dir:'I',anchor:V3(1.45,2.0,0.5)},
+    {addr:'I0.4',name:'HP OK',kind:'High-pressure switch, NC: 0 when tripped (above 22 bar)',dir:'I',anchor:V3(-1.75,0.95,0.44)},
+    {addr:'I0.5',name:'Defrost button',kind:'Push button, NO (amber)',dir:'I'},
+    {addr:'IW64',name:'Room temp',kind:'Pt100 transmitter on AI0: −30…+20 °C = 0–10 V = 0…27648',dir:'AI',anchor:W.rsAnch,fmt:fmtC},
+    {addr:'IW66',name:'Coil temp',kind:'Evaporator coil sensor on AI1: −30…+20 °C = 0…27648',dir:'AI',anchor:V3(0.3,2.12,-0.72),fmt:fmtC},
+    {addr:'Q0.0',name:'Compressor',kind:'Compressor contactor',dir:'Q',anchor:V3(-2.25,0.75,0.15)},
+    {addr:'Q0.1',name:'Condenser fan',kind:'Fan on the condensing unit',dir:'Q',anchor:V3(-1.8,1.15,-0.25)},
+    {addr:'Q0.2',name:'Evaporator fans',kind:'Unit cooler fans inside the room',dir:'Q',anchor:V3(-0.25,2.15,-0.5)},
+    {addr:'Q0.3',name:'Defrost heater',kind:'Electric heater in the evaporator coil',dir:'Q',anchor:V3(0.75,2.15,-0.5)},
+    {addr:'Q0.4',name:'Alarm light',kind:'Red lamp on the panel',dir:'Q'},
+    {addr:'Q0.5',name:'Run light',kind:'Green lamp on the panel',dir:'Q'}],
+  defaultEx:'thermo',
+  examples:{
+    thermo:{name:'Simple thermostat (start here)',prog:{rungs:[runLatch(),
+      NW('Compressor on above +3 °C (18248), off below. No hysteresis and no restart delay: watch it short-cycle.',[[CMP('IW64','>=',18248)]],[NO('M0.0')],COIL('Q0.0')),
+      NW('Condenser fan runs with the compressor',[[NO('Q0.0')]],[],COIL('Q0.1')),
+      NW('Evaporator fans run while the system is on',[[NO('M0.0')]],[],COIL('Q0.2')),
+      NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.5'))]}},
+    full:{name:'Cold room controller (solution)',prog:{rungs:[runLatch(),
+      NW('Cooling demand: set at +4 °C (18801)',[[CMP('IW64','>=',18801)]],[],SET('M0.1')),
+      NW('Clear the demand at +2 °C (17695). The 2 °C gap is the hysteresis.',[[CMP('IW64','<=',17695)]],[],RST('M0.1')),
+      NW('Restart delay: T0 runs while the compressor is off',[[NCx('Q0.0')]],[],TON('T0',8000)),
+      NW('Every 90 s of operation, request a defrost',[[NO('M0.0')]],[NCx('M0.2')],TON('T2',90000)),
+      NW('Start a defrost: timer done or DEFROST pressed',[[NO('T2')],[PE('I0.5')]],[NO('M0.0')],SET('M0.2')),
+      NW('Defrost safety time: 25 s at most',[[NO('M0.2')]],[],TON('T3',25000)),
+      NW('End the defrost when the coil reaches +8 °C (21012), on the safety time, or when the system stops',[[CMP('IW66','>=',21012)],[NO('T3')],[NCx('M0.0')]],[],RST('M0.2')),
+      NW('Compressor: system on, cooling demand, no defrost, pressure OK, and either already running or the restart delay is over',[[NO('Q0.0')],[NO('T0')]],[NO('M0.0'),NO('M0.1'),NCx('M0.2'),NO('I0.4')],COIL('Q0.0')),
+      NW('Condenser fan runs with the compressor',[[NO('Q0.0')]],[],COIL('Q0.1')),
+      NW('Evaporator fans: on while running, off with the door open or during defrost',[[NO('M0.0')]],[NCx('I0.3'),NCx('M0.2')],COIL('Q0.2')),
+      NW('Defrost heater',[[NO('M0.2')]],[NO('M0.0')],COIL('Q0.3')),
+      NW('Door open for 10 s',[[NO('I0.3')]],[],TON('T1',10000)),
+      NW('Alarm: door left open, or high-pressure trip',[[NO('T1')],[NCx('I0.4')]],[],COIL('Q0.4')),
+      NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.5'))]}}
+  },
+  task:{
+    title:'Cold room refrigeration',
+    desc:'A chill room for food storage must stay between 0 °C and +5 °C. The PLC runs the compressor, the condenser fan, the evaporator fans and a defrost heater. Room and coil temperatures arrive on the analog inputs (−30…+20 °C = 0…27648). Click the cold room door to open it.',
+    objectives:W=>[
+      {t:'Start and stop the plant with START and STOP',d:'Run light Q0.5 follows a self-hold',ok:!!(W.flags.selfHold&&W.flags.stopWorks)},
+      {t:'Hold the room between 0 °C and +5 °C for 60 s',d:`Best run ${Math.floor(W.flags.best||0)} s`,ok:(W.flags.best||0)>=60},
+      {t:'No compressor short-cycling, no high-pressure trips',d:`${W.stats.short||0} short cycles · ${W.stats.trips||0} trips · ${Math.floor(W.flags.runT||0)} s running`,ok:!(W.stats.short)&&!(W.stats.trips)&&(W.flags.runT||0)>=120},
+      {t:'Defrost the iced coil: heater on, compressor off',d:'Ice gone and coil above +2 °C',ok:!!W.flags.defrost},
+      {t:'Raise the alarm when the door stays open over 10 s',d:'Q0.4 on after 10 s of open door (TON)',ok:!!W.flags.doorAlarm}],
+    stats:W=>{ const R=W.ref; return [['Room',(R.Tr>=0?'+':'')+R.Tr.toFixed(1)+' °C',(R.Tr>=-0.5&&R.Tr<=5.5)?'good':''],['Coil',(R.Te>=0?'+':'')+R.Te.toFixed(1)+' °C',''],['Ice on coil',Math.round(R.ice/1.5*100)+' %',R.ice>0.8?'badv':''],['Pressure',R.P.toFixed(1)+' bar',R.trip?'badv':''],['Short cycles',W.stats.short||0,W.stats.short?'badv':''],['Starts',W.stats.starts||0,'']]; },
+    hints:['Temperatures are compared as raw numbers: raw = (°C + 30) ÷ 50 × 27648. +4 °C is <code>18801</code>, +2 °C is <code>17695</code>.','Set a cooling-demand bit at +4 °C and reset it at +2 °C. Without that gap the compressor starts and stops every few seconds.','Protect the compressor: a <code>TON</code> on “compressor off” must finish before it may start again. Run the condenser fan with it, or the high-pressure switch trips.','Ice builds on the coil while it runs and cooling gets weaker. Defrost: compressor off, heater on, until the coil reads above +8 °C.'],
+    settings:W=>[{type:'toggle',label:'Cold room door open',get:()=>W.ref.door,set:v=>W.ref.door=v},{type:'range',label:'Outside temperature',min:20,max:40,get:()=>W.ref.amb,set:v=>W.ref.amb=v,fmt:v=>v+' °C'}]
+  }
+});
+
 /* ================= app shell: scenes, tabs, I/O, task pane, loop ================= */
-const SCN={cab:CAB,a:SCENE_A,b:SCENE_B,c:SCENE_C}, ORDER=['cab','a','b','c'];
+const SCN={cab:CAB,a:SCENE_A,b:SCENE_B,c:SCENE_C,d:SCENE_D}, ORDER=['cab','a','b','c','d'];
 let ioDirty=true;
 function setCpuRun(v){
   plc.run=!!v; prefs.run=plc.run; savePrefs();
@@ -2305,7 +2545,7 @@ function setScene(id){
   $('#tip').hidden=true; labelLayer.innerHTML='';
   s.enter();
   setTab(s.tabs.includes(app.tab)?app.tab:s.defaultTab);
-  renderLadder(); buildIOTable(); renderTaskPane();
+  renderLadder(); buildIOTable(); renderTaskPane(); extPublish(); renderExt();
   if(fac&&!store.get('plcfab-seen-'+id,false)){ store.set('plcfab-seen-'+id,true); setTimeout(()=>{ if(app.scene===s) toast('Press START on the operator panel (or in the Task tab) to run the line.'); },600); }
 }
 /* tabs */
@@ -2395,7 +2635,7 @@ function updateIOTable(full){
   $$('#ioTable tr[data-addr]').forEach(tr=>{
     const a=tr.dataset.addr, p=parseOp(a), cell=tr.querySelector('.val');
     let html, forced=false;
-    if(p.a==='AI'){ const raw=plc.AI[p.i]; html=`${raw} <span style="color:var(--muted)">· ${voltsOf(raw).toFixed(2)} V · ${percentOf(raw).toFixed(1)} %</span>`; }
+    if(p.a==='AI'){ const raw=plc.AI[p.i]; const tg=app.scene.tags.find(t=>t.addr===a); html=`${raw} <span style="color:var(--muted)">· ${voltsOf(raw).toFixed(2)} V · ${tg&&tg.fmt?tg.fmt(raw):percentOf(raw).toFixed(1)+' %'}</span>`; }
     else { const v=p.a==='I'?plc.I[p.i]:plc.out[p.i]; forced=(p.a==='I'?plc.forceI:plc.forceQ)[p.i]!=null; html=`<span class="dot ${v?'ok':''}"></span>${v?'1':'0'}${forced?' <span class="cpu" style="padding:0 5px"><span class="f">F</span></span>':''}`; }
     if(cell.innerHTML!==html) cell.innerHTML=html;
     tr.classList.toggle('forced',forced);
@@ -2429,7 +2669,8 @@ $('#plcViewBtn').onclick=()=>app.scene.lookPLC();
 $('#resetView').onclick=()=>app.scene.fitView();
 function updateTop(){
   const fac=app.scene.id!=='cab';
-  const st=!plc.powered?['','NO POWER']:plc.run?['ok','RUN']:['warn','STOP'];
+  const st=!plc.powered?['','NO POWER']:EXT.on?(EXT.state==='on'&&performance.now()-EXT.lastData<1500&&extPeer()?['ok','EXT PLC']:['warn','EXT · WAIT']):plc.run?['ok','RUN']:['warn','STOP'];
+  if(app.tab==='io'){ const q=$('#extQ'); if(q) q.textContent=EXT.Q.join(''); }
   $('#cpuDot').className='dot '+st[0]; $('#cpuState').textContent=st[1];
   $('#cpuForce').hidden=!forcing();
   $('#runToggle').textContent=plc.run?'Stop CPU':'Run CPU';
@@ -2444,7 +2685,7 @@ window.addEventListener('pointercancel',e=>{ if(app.scene) app.scene.pointerUp(e
 renderer.domElement.addEventListener('pointermove',e=>{ if(app.scene) app.scene.pointerMove(e); });
 renderer.domElement.addEventListener('pointerleave',()=>{ $('#tip').hidden=true; if(app.scene) app.scene.pointerLeave(); });
 window.addEventListener('keydown',e=>{ const tg=e.target&&e.target.tagName; if(tg==='SELECT'||tg==='INPUT'||tg==='TEXTAREA') return; if(app.scene) app.scene.key(e); });
-window.addEventListener('blur',()=>{ for(const id of ['a','b','c']) SCN[id].W.panels.forEach(P=>P.pressed={}); });
+window.addEventListener('blur',()=>{ for(const id of ['a','b','c','d']) SCN[id].W.panels.forEach(P=>P.pressed={}); });
 
 function resize(){ const r=stage.getBoundingClientRect(); renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false); camera.aspect=Math.max(1,r.width)/Math.max(1,r.height); camera.updateProjectionMatrix(); }
 let fitted=false;
@@ -2470,7 +2711,9 @@ setScene(SCN[prefs.scene]?prefs.scene:'a');
 fitted=true; app.scene.fitView();
 requestAnimationFrame(frame);
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{ try{ CAB.refreshFaces(); }catch(e){} });
-window.__plcfab={app,plc,SCN,setScene,setTab,stepWorld,normProg,progClone,plcModel};
+window.__plcfab={app,plc,SCN,setScene,setTab,stepWorld,normProg,progClone,plcModel,EXT,setExt,plcScan,extInfo};
 
 })();
 </script>
+
+</body></html>
