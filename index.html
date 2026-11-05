@@ -214,6 +214,46 @@ input[type="range"]{width:100%;accent-color:var(--accent)}
 .paused{position:absolute;top:12px;left:50%;transform:translateX(-50%);font-family:var(--display);font-weight:700;letter-spacing:.12em;font-size:15px;background:#0d1014dd;border:1px solid var(--line);border-radius:6px;padding:4px 14px;color:var(--warn);z-index:3}
 .credit{font-size:11.5px;color:var(--muted);margin:4px 0 0;padding-bottom:4px}
 .credit a{color:#9fc6ef}
+.sheet{background:#fbfbf8;border:1px solid var(--line);border-radius:6px;overflow:auto;max-height:440px}
+.sheet svg{display:block}
+.sheetbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sheetbar button{text-align:center;font-size:12.5px;padding:6px 10px}
+.sheetbar .sp{flex:1}
+.dlbtns{display:flex;gap:6px;flex-wrap:wrap}
+.dlbtns button{font-size:12.5px;padding:6px 10px}
+.sheetbar button.on{border-color:var(--accent);color:#ffdcab;box-shadow:none}
+.learn p{margin:0;max-width:68ch;font-size:13.5px;line-height:1.6}
+.learn b{color:#fff;font-weight:600}
+.iol{width:100%;border-collapse:collapse;font-size:12.5px}
+.iol td,.iol th{padding:6px;border-bottom:1px solid #20262e;vertical-align:top;text-align:left}
+.iol th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.iol td.a{font-family:var(--mono);white-space:nowrap}
+.iol td.t{font-family:var(--mono);color:#9fc6ef;white-space:nowrap}
+.iol td small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+.iol tr.fly{cursor:pointer}
+.iol tr.fly:hover td{background:#1b2129}
+.walk{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;counter-reset:nw}
+.walk li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:13px;line-height:1.55}
+.walk li .n{font-family:var(--mono);font-size:11px;color:var(--accent);white-space:nowrap;padding-top:2px}
+.walk li button{font-size:12px;padding:3px 8px;text-align:center}
+.seq{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:13.5px;max-width:68ch}
+.wl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.wl li{border-left:3px solid var(--live);background:var(--raise);padding:7px 10px;border-radius:0 6px 6px 0;font-size:13px}
+.wl li.danger{border-left-color:var(--bad)} .wl li.warn{border-left-color:var(--warn)}
+.wl li b{display:block;font-size:13px}
+.fault{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--raise)}
+.fault.active{border-color:#7a3b3b;background:#241a1c}
+.fault h4{margin:0;font-size:14px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.fault h4 button{font-size:12px;padding:4px 10px;flex:none}
+.fault dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:4px 10px;font-size:12.5px}
+.fault dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:2px}
+.fault dd{margin:0}
+.modal{position:fixed;inset:0;background:#05080bd9;z-index:50;display:flex;align-items:stretch;justify-content:center;padding:16px}
+.modal-in{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;width:min(1700px,100%);min-height:0}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.modal-head b{font-family:var(--display);font-size:20px;letter-spacing:.04em}
+.modal-body{overflow:auto;padding:12px;flex:1;min-height:0;background:#fbfbf8;border-radius:0 0 10px 10px}
+.modal-body svg{display:block;margin:0 auto;width:100%;height:auto;min-width:900px}
 @media (max-width:1150px){ .app{grid-template-columns:minmax(0,1fr) 400px} }
 @media (max-width:900px){
   html,body{height:auto}
@@ -226,6 +266,7 @@ input[type="range"]{width:100%;accent-color:var(--accent)}
 @media (prefers-reduced-motion:reduce){.bar i,.g-bar i{transition:none}}
 </style>
 
+<div id="diagModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="diagTitle"><div class="modal-in"><div class="modal-head"><b id="diagTitle"></b><span class="dlbtns"><button type="button" id="diagPng">Download PNG</button><button type="button" id="diagSvg">SVG</button><button type="button" id="diagClose">Close</button></span></div><div class="modal-body" id="diagBody"></div></div></div>
 <div class="app" id="app">
   <header class="topbar">
     <div class="brand"><p class="eyebrow">S7-1200 · factory simulator</p><h1>Eros Automation Lab</h1></div>
@@ -268,12 +309,15 @@ input[type="range"]{width:100%;accent-color:var(--accent)}
   <aside class="panel">
     <div class="tabs" role="tablist" aria-label="Tools">
       <button type="button" role="tab" data-tab="task" id="tabTask">Task</button>
+      <button type="button" role="tab" data-tab="learn" id="tabLearn">Learn</button>
       <button type="button" role="tab" data-tab="wiring" id="tabWiring">Wiring</button>
       <button type="button" role="tab" data-tab="program">Program</button>
       <button type="button" role="tab" data-tab="io">I/O tags</button>
     </div>
 
     <section class="pane" id="pane-task" role="tabpanel"></section>
+
+    <section class="pane" id="pane-learn" role="tabpanel"></section>
 
     <section class="pane" id="pane-wiring" role="tabpanel">
       <section class="card">
@@ -477,32 +521,45 @@ function extInfo(){ const s=app.scene; return {role:'factory',app:'Eros Automati
   tags:s?s.tags.map(t=>({addr:t.addr,name:t.name||'',kind:t.kind||'',dir:t.dir||''})):[],program:progClone(plc.prog)}; }
 function extPublish(){ if(EXT.dl){ EXT.dl.refresh(); return; } if(EXT.state==='on') extSend({op:'publish',info:extInfo()}); }
 function extWrite(addr,type,value){ if(EXT.dl) EXT.dl.write(addr,type,value); else extSend({op:'write',tag:{name:addr,addr,type},value}); }
-/* ===== Direct link: pages open in the same browser talk over a BroadcastChannel, no bridge needed ===== */
+/* ===== Direct link: pages in the same browser talk without the bridge =====
+   Two transports carry the same messages:
+   - a BroadcastChannel, for pages from the same origin (two downloaded files, or both from the bridge);
+   - window.postMessage, for a page embedded in another (the factory inside the editor), which works across origins.
+   Messages: info / hello (who I am), w (a written address), bye. Duplicates are harmless. */
+var EROS_LINK_TAG='eros-plc-link';
+function erosLinkTargets(){const t=[];
+  try{if(window.__erosEmbedded&&window.parent&&window.parent!==window)t.push(window.parent);}catch(e){}
+  (window.__erosLinkFrames||[]).forEach(f=>{try{const w=f&&f.contentWindow;if(w)t.push(w);}catch(e){}});
+  return t;}
 function makeDirectLink(getInfo,onWrite,onPeers){
-  const id=Math.random().toString(36).slice(2),bc=new BroadcastChannel('eros-plc-link'),peers={},owner={},mine={};let lastSig='';
-  const post=m=>{try{bc.postMessage(Object.assign({from:id},m));}catch(e){}};
+  const id=Math.random().toString(36).slice(2),peers={},owner={},mine={};let lastSig='',bc=null;
+  try{if(typeof BroadcastChannel!=='undefined')bc=new BroadcastChannel(EROS_LINK_TAG);}catch(e){bc=null;}
+  const post=m=>{const msg=Object.assign({from:id},m);if(bc)try{bc.postMessage(msg);}catch(e){}
+    for(const w of erosLinkTargets()){try{w.postMessage({[EROS_LINK_TAG]:msg},'*');}catch(e){}}};
   const sig=()=>JSON.stringify(Object.keys(peers).sort().map(k=>[k,peers[k].sig]));
   const changed=()=>{const s=sig();if(s!==lastSig){lastSig=s;onPeers();}};
-  const drop=pid=>{delete peers[pid];for(const a in owner)if(owner[a]===pid){delete owner[a];onWrite(a,null,0,pid);}changed();};
+  const drop=pid=>{if(!peers[pid])return;delete peers[pid];for(const a in owner)if(owner[a]===pid){delete owner[a];onWrite(a,null,0,pid);}changed();};
   const resend=()=>{post({t:'info',info:getInfo()});for(const a in mine)post({t:'w',addr:a,type:mine[a].type,value:mine[a].value});};
-  bc.onmessage=e=>{const m=e.data;if(!m||m.from===id)return;
+  const handle=m=>{if(!m||typeof m!=='object'||!m.from||m.from===id)return;
     if(m.t==='info'||m.t==='hello'){const isNew=!peers[m.from];peers[m.from]={info:m.info,seen:Date.now(),sig:JSON.stringify(m.info||{}).length+':'+((m.info&&m.info.scene)||'')+':'+((m.info&&m.info.cpu)||'')+':'+((m.info&&m.info.running)?1:0)};if(isNew||m.t==='hello')resend();changed();}
     else if(m.t==='w'){if(peers[m.from])peers[m.from].seen=Date.now();owner[m.addr]=m.from;onWrite(m.addr,m.type,m.value,m.from);}
     else if(m.t==='bye')drop(m.from);};
+  if(bc)bc.onmessage=e=>handle(e.data);
+  const onMsg=e=>{const d=e.data;if(d&&typeof d==='object'&&d[EROS_LINK_TAG])handle(d[EROS_LINK_TAG]);};
+  window.addEventListener('message',onMsg);
   const hb=setInterval(()=>{post({t:'info',info:getInfo()});const now=Date.now();for(const p in peers)if(now-peers[p].seen>10000)drop(p);},700);
   const bye=()=>post({t:'bye'});window.addEventListener('pagehide',bye);
   post({t:'hello',info:getInfo()});
   return {write(addr,type,value){mine[addr]={type,value};post({t:'w',addr,type,value});},peers:()=>Object.values(peers).map(p=>p.info),refresh(){post({t:'info',info:getInfo()});},hello(){post({t:'hello',info:getInfo()});},
-    close(){bye();clearInterval(hb);window.removeEventListener('pagehide',bye);try{bc.close();}catch(e){}}};
+    close(){bye();clearInterval(hb);window.removeEventListener('pagehide',bye);window.removeEventListener('message',onMsg);if(bc)try{bc.close();}catch(e){}}};
 }
 
 const extPeer=()=>EXT.peers.find(p=>p&&p.role==='plc');
 function extConnect(){
   if(EXT.mode==='direct'){
-    if(typeof BroadcastChannel==='undefined'){ EXT.state='err'; EXT.msg='This browser cannot link pages directly. Use the PLC bridge instead.'; renderExt(); return; }
     if(EXT.dl) EXT.dl.close();
     EXT.dl=makeDirectLink(extInfo,(addr,type,v)=>{ const m=/^Q0\.(\d)$/.exec(addr); if(m&&+m[1]<NQ){ EXT.Q[+m[1]]=v?1:0; EXT.lastData=performance.now(); } },()=>{ const had=!!extPeer(); EXT.peers=EXT.dl?EXT.dl.peers():[]; if(extPeer()&&!had) toast('External PLC found: '+(extPeer().app||'PLC')+'.'); renderExt(); });
-    EXT.state='on'; EXT.msg=''; EXT.sentI.fill(null); EXT.sentAI=[null,null]; renderExt(); toast('Linked in this browser. Waiting for the PLC.'); return; }
+    EXT.state='on'; EXT.msg=''; EXT.sentI.fill(null); EXT.sentAI=[null,null]; renderExt(); toast(window.__erosEmbedded?'Linked to the editor’s soft PLC.':'Linked in this browser. Waiting for the PLC.'); return; }
   const inp=$('#extUrl'); if(inp){ EXT.url=inp.value.trim()||'ws://localhost:8765/ws'; store.set('plcfab-ext-url',EXT.url); }
   if(EXT.ws) try{ EXT.ws.close(); }catch(e){}
   EXT.state='connecting'; EXT.msg='Connecting to the PLC bridge…'; renderExt();
@@ -535,7 +592,7 @@ function renderExt(){
     <p class="hint">Let another PLC run this machine, for example the soft PLC in <b>Eros’s Block Diagram Editor</b>, through the PLC bridge on this computer. This CPU’s own program is then bypassed. The sensors go out on %I0.0–%I0.7 and %IW64/%IW66, and the actuators follow %Q0.0–%Q0.5 from the external PLC.</p>
     <div class="seg" role="radiogroup" aria-label="Who runs the program"><button type="button" role="radio" data-ext="0" class="${EXT.on?'':'on'}" aria-checked="${!EXT.on}"><span class="k">This page</span>Internal CPU</button><button type="button" role="radio" data-ext="1" class="${EXT.on?'on':''}" aria-checked="${EXT.on}"><span class="k">Through the bridge</span>External PLC</button></div>
     <div class="seg" role="radiogroup" aria-label="How to connect"><button type="button" role="radio" data-extm="direct" class="${EXT.mode==='direct'?'on':''}" aria-checked="${EXT.mode==='direct'}"${on?' disabled':''}><span class="k">No install</span>Same browser</button><button type="button" role="radio" data-extm="bridge" class="${EXT.mode==='bridge'?'on':''}" aria-checked="${EXT.mode==='bridge'}"${on?' disabled':''}><span class="k">Python</span>PLC bridge</button></div>
-    ${EXT.mode==='direct'?'<p class="hint">Works when the editor is open in this same Chrome as a downloaded file (or both pages come from the bridge). Keep the two in separate windows side by side.</p>':`<div class="setrow"><label for="extUrl">Bridge address</label><input id="extUrl" class="txt" value="${esc(EXT.url)}" spellcheck="false"${on||EXT.state==='connecting'?' disabled':''}></div>`}
+    ${EXT.mode==='direct'?(window.__erosEmbedded?'<p class="hint">This factory is open inside the editor and linked to its soft PLC directly.</p>':'<p class="hint">Easiest: in the editor, open the PLC tab and press <b>Open the factory here</b>, which runs this factory inside the editor. Linking two separate pages this way works only when both are downloaded files open in the same browser.</p>'):`<div class="setrow"><label for="extUrl">Bridge address</label><input id="extUrl" class="txt" value="${esc(EXT.url)}" spellcheck="false"${on||EXT.state==='connecting'?' disabled':''}></div>`}
     <div class="row">${on||EXT.state==='connecting'?'<button type="button" id="extOff">Disconnect</button>':'<button type="button" id="extOn">Connect</button>'}</div>
     ${on?`<div class="status"><div class="chip"><span class="dot ${p?'ok':'warn'}"></span><span class="lbl">PLC</span><b>${p?esc(p.app||'connected'):'none yet'}</b></div><div class="chip"><span class="dot ${performance.now()-EXT.lastData<1500?'ok':''}"></span><span class="lbl">Outputs</span><b id="extQ">${EXT.Q.join('')}</b></div></div>`:''}
     ${on&&!p?'<p class="hint">In the editor open the <b>PLC [Ladder]</b> tab and press <b>Link to the factory</b> under Machine link. It can load this scene’s tags and example program for you.</p>':''}
@@ -812,7 +869,7 @@ $('#progUndo').onclick=()=>{ const h=LD.hist.pop(); if(!h){ toast('Nothing to un
 $('#progClear').onclick=()=>{ if(!plc.prog.rungs.length) return; mutate(()=>{ plc.prog.rungs=[]; LD.sel=null; }); toast('Program cleared. Undo brings it back.'); };
 $('#exLoad').onclick=()=>{ const s=app.scene, ex=s.examples[$('#exSel').value]; if(!ex) return; mutate(()=>{ plc.prog=normProg(progClone(ex.prog)); LD.sel=null; }); toast(`Loaded example: ${ex.name}.`); };
 $('#wideBtn').onclick=()=>{ prefs.wide=!(prefs.wide!==false); savePrefs(); applyWide(); };
-function applyWide(){ const w=app.tab==='program'&&prefs.wide!==false; $('#app').classList.toggle('wide',w); $('#wideBtn').textContent=prefs.wide!==false?'Narrow editor':'Wide editor'; }
+function applyWide(){ const w=(app.tab==='program'||app.tab==='learn')&&prefs.wide!==false; $('#app').classList.toggle('wide',w); $('#wideBtn').textContent=prefs.wide!==false?'Narrow editor':'Wide editor'; }
 
 /* ================= renderer, camera, shared helpers ================= */
 const app={scene:null,scenes:{},paused:false,speed:+prefs.speed||1,tab:'task'};
@@ -944,7 +1001,7 @@ function showTip(e,html){ const tip=$('#tip'); if(!html){ tip.hidden=true; retur
 const labelLayer=$('#labels'); const _pv=new THREE.Vector3();
 function buildLabels(tags){
   labelLayer.innerHTML='';
-  return tags.filter(t=>t.anchor).map(t=>{ const d=document.createElement('div'); d.className='tl'+(t.dir==='AI'?' ai':''); d.innerHTML=`<i></i><b>${esc(t.addr)}</b><span>${esc(t.name)}</span><em style="font-style:normal"></em>`; labelLayer.appendChild(d); return {t,d,em:d.querySelector('em'),last:''}; });
+  return tags.filter(t=>t.anchor).map(t=>{ const d=document.createElement('div'); d.className='tl'+(t.dir==='AI'?' ai':''); d.innerHTML=`<i></i><b>${esc(t.addr)}</b>${t.dev?`<span style="color:#9fc6ef">${esc(t.dev)}</span>`:''}<span>${esc(t.name)}</span><em style="font-style:normal"></em>`; labelLayer.appendChild(d); return {t,d,em:d.querySelector('em'),last:''}; });
 }
 function updateLabels(list,show){
   if(!show){ labelLayer.style.display='none'; return; } labelLayer.style.display='';
@@ -1911,7 +1968,7 @@ function addPusher(W,o){
   W.pushers.push(p); return p;
 }
 function pusherStep(W,p,h){
-  const tgt=p.ext?1:0, ds=p.speed/p.stroke*h;
+  const tgt=p.ext?(p.limit||1):0, ds=p.speed/p.stroke*h*(p.limit<1?0.5:1);
   if(p.s<tgt) p.s=Math.min(tgt,p.s+ds); else if(p.s>tgt) p.s=Math.max(tgt,p.s-ds);
   const f=p.face();
   for(const it of W.items){ if(it.dead||it.fallen) continue;
@@ -2031,12 +2088,12 @@ function addECab(W,o){
 /* ================= factory scene runtime ================= */
 function makeFactory(def){
   const sc=new THREE.Scene();
-  const W={sc,items:[],conveyors:[],beams:[],pushers:[],emitters:[],removers:[],panels:[],stacks:[],picks:[],colliders:[],t:0,seq:0,stats:{},flags:{},inputs:{},outputs:{},ai:[null,null],extra:null,extraVis:null};
+  const W={faults:{},sc,items:[],conveyors:[],beams:[],pushers:[],emitters:[],removers:[],panels:[],stacks:[],picks:[],colliders:[],t:0,seq:0,stats:{},flags:{},inputs:{},outputs:{},ai:[null,null],extra:null,extraVis:null};
   buildEnv(W,def.env);
   def.build(W);
   const tags=def.tags(W);
   const api={
-    id:def.id,num:def.num,name:def.name,scene:sc,W,tabs:['task','program','io'],defaultTab:'task',
+    id:def.id,num:def.num,name:def.name,scene:sc,W,tabs:['task','learn','program','io'],defaultTab:'task',
     tags,tagMap:Object.fromEntries(tags.filter(t=>t.name).map(t=>[t.addr,t])),examples:def.examples,defaultEx:def.defaultEx,task:def.task,
     help:'Drag to orbit, right-drag to pan, scroll to zoom. Press the buttons on the operator panel, or use the Task tab. With the CPU in STOP, click a conveyor, pusher or valve to jog it by hand.',
     labels:null,acc:0,
@@ -2060,7 +2117,7 @@ function makeFactory(def){
       for(const it of W.items){ W.sc.remove(it.mesh); } W.items=[];
       W.pushers.forEach(p=>{ p.s=0; p.ext=false; }); W.emitters.forEach(e=>e.t=99);
       W.panels.forEach(P=>{ P.pressed={}; P.latched={}; });
-      W.stats={}; W.flags={}; W.t=0; if(def.reset) def.reset(W);
+      W.stats={}; W.flags={}; W.faults={}; W.t=0; if(def.reset) def.reset(W);
       toast('Scene reset. The PLC program keeps running.');
     },
     pointerDown(e){ setNdc(e); const u=pickFrom(W.picks); api._down={x:e.clientX,y:e.clientY,u};
@@ -2138,10 +2195,11 @@ function trackRun(W,qi,startId,stopIds){
   if(!stopNow) f.stopping=false;
 }
 const BTN3=[{id:'start',type:'no',label:'START',color:0x23a455,addr:'I0.0'},{id:'stop',type:'nc',label:'STOP',color:0xd23131,addr:'I0.1'},{id:'estop',type:'estop',label:'E-STOP',addr:'I0.2'}];
-const PANEL_TAGS=[{addr:'I0.0',name:'Start',kind:'Push button, NO (green)',dir:'I'},{addr:'I0.1',name:'Stop',kind:'Push button, NC (red)',dir:'I'},{addr:'I0.2',name:'Emergency stop',kind:'Mushroom button, NC, latching',dir:'I'}];
+const PANEL_TAGS=[{addr:'I0.0',dev:'-S1',name:'Start',kind:'Push button, NO (green)',dir:'I'},{addr:'I0.1',dev:'-S2',name:'Stop',kind:'Push button, NC (red)',dir:'I'},{addr:'I0.2',dev:'-S0',name:'Emergency stop',kind:'Mushroom button, NC, latching',dir:'I'}];
 const runLatch=()=>NW('System on: START sets M0.0 and M0.0 holds itself. STOP and E-stop are NC buttons, so they read 1 until pressed.',[[NO('I0.0')],[NO('M0.0')]],[NO('I0.1'),NO('I0.2')],COIL('M0.0'));
 function panelInputs(W){ W.inputs['I0.0']=()=>W.panel.val('start'); W.inputs['I0.1']=()=>W.panel.val('stop'); W.inputs['I0.2']=()=>W.panel.val('estop'); }
 
+const latchA=()=>NW('System on: START sets M0.0 and M0.0 holds itself. STOP and E-stop are NC (1 until pressed); I0.5 is 1 while the motor breaker -Q1 is on.',[[NO('I0.0')],[NO('M0.0')]],[NO('I0.1'),NO('I0.2'),NO('I0.5')],COIL('M0.0'));
 /* ================= SCENE 1: From A to B ================= */
 const SCENE_A=makeFactory({
   id:'a',num:'1',name:'From A to B',
@@ -2158,22 +2216,23 @@ const SCENE_A=makeFactory({
     addPanel(W,{x:-2.7,z:1.5,rot:0.25,buttons:BTN3,lamps:[{label:'RUN',color:0x2ee06a,addr:'Q0.1'},{label:'STOPPED',color:0xff3b30,addr:'Q0.2'}]});
     addECab(W,{x:-4.2,z:-1.3,rot:0.4});
     panelInputs(W);
-    W.inputs['I0.3']=()=>W.sA.val; W.inputs['I0.4']=()=>W.sB.val;
-    W.outputs['Q0.0']=v=>W.conv.run=v;
+    W.inputs['I0.3']=()=>W.sA.val; W.inputs['I0.4']=()=>W.faults.dirty?true:W.sB.val; W.inputs['I0.5']=()=>!W.faults.trip;
+    W.outputs['Q0.0']=v=>W.conv.run=v&&!W.faults.trip;
     W.track=()=>{ trackRun(W,0,'start',['stop','estop']);
       const f=W.flags; if(W.sB.val){ if(f.bOn==null) f.bOn=W.t; } else if(f.bOn!=null){ const dwell=W.t-f.bOn; f.bOn=null; (f.dwells=f.dwells||[]).push(dwell); if(f.dwells.length>5) f.dwells.shift(); } };
   },
   tags:(W)=>[...PANEL_TAGS,
-    {addr:'I0.3',name:'Sensor A',kind:'Retro-reflective sensor at the start, NO',dir:'I',anchor:W.sA.anchor},
-    {addr:'I0.4',name:'Sensor B',kind:'Retro-reflective sensor at the end, NO',dir:'I',anchor:W.sB.anchor},
-    {addr:'Q0.0',name:'Conveyor',kind:'Belt conveyor motor',dir:'Q',anchor:W.conv.anchor},
-    {addr:'Q0.1',name:'Run light',kind:'Green lamp on the panel',dir:'Q'},
-    {addr:'Q0.2',name:'Stopped light',kind:'Red lamp on the panel',dir:'Q'}],
+    {addr:'I0.3',dev:'-B1',name:'Sensor A',kind:'Retro-reflective sensor at the start, PNP dark-on',dir:'I',anchor:W.sA.anchor},
+    {addr:'I0.4',dev:'-B2',name:'Sensor B',kind:'Retro-reflective sensor at the end, PNP dark-on',dir:'I',anchor:W.sB.anchor},
+    {addr:'I0.5',dev:'-Q1',name:'Motor breaker OK',kind:'Aux contact 13-14 of the motor protective breaker, 1 = on',dir:'I',anchor:V3(-4.2,2.0,-1.1)},
+    {addr:'Q0.0',dev:'-K1',name:'Conveyor',kind:'Contactor coil → belt motor -M1',dir:'Q',anchor:W.conv.anchor},
+    {addr:'Q0.1',dev:'-P1',name:'Run light',kind:'Green lamp on the panel',dir:'Q'},
+    {addr:'Q0.2',dev:'-P2',name:'Stopped light',kind:'Red lamp on the panel',dir:'Q'}],
   defaultEx:'run',
   examples:{
-    run:{name:'Run with START/STOP',prog:{rungs:[runLatch(),NW('Conveyor runs while the system is on',[[NO('M0.0')]],[],COIL('Q0.0')),NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.1')),NW('Red light: stopped',[[NCx('M0.0')]],[],COIL('Q0.2'))]}},
-    stopB:{name:'Stop 2 s at B (TON)',prog:{rungs:[runLatch(),NW('A box at B starts a 2 s on-delay timer',[[NO('I0.4')]],[],TON('T0',2000)),NW('Run the conveyor unless a box waits at B and the 2 s are not over yet',[[NCx('I0.4')],[NO('T0')]],[NO('M0.0')],COIL('Q0.0')),NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.1')),NW('Red light: stopped',[[NCx('M0.0')]],[],COIL('Q0.2'))]}},
-    batch:{name:'Batch of 5 boxes (CTU)',prog:{rungs:[NW('System on until the counter reaches 5',[[NO('I0.0')],[NO('M0.0')]],[NO('I0.1'),NO('I0.2'),NCx('C0')],COIL('M0.0')),NW('Conveyor',[[NO('M0.0')]],[],COIL('Q0.0')),NW('Count every box that arrives at B (rising edge)',[[PE('I0.4')]],[],CTU('C0',5)),NW('START clears the counter for the next batch',[[NO('I0.0')]],[],RST('C0')),NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.1')),NW('Red light: stopped or batch done',[[NCx('M0.0')]],[],COIL('Q0.2'))]}}
+    run:{name:'Run with START/STOP',prog:{rungs:[latchA(),NW('Conveyor runs while the system is on',[[NO('M0.0')]],[],COIL('Q0.0')),NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.1')),NW('Red light: stopped',[[NCx('M0.0')]],[],COIL('Q0.2'))]}},
+    stopB:{name:'Stop 2 s at B (TON) · solution',prog:{rungs:[latchA(),NW('A box at B starts a 2 s on-delay timer',[[NO('I0.4')]],[],TON('T0',2000)),NW('Run the conveyor unless a box waits at B and the 2 s are not over yet',[[NCx('I0.4')],[NO('T0')]],[NO('M0.0')],COIL('Q0.0')),NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.1')),NW('Red light: stopped, or the motor breaker has tripped',[[NCx('M0.0')],[NCx('I0.5')]],[],COIL('Q0.2'))]}},
+    batch:{name:'Batch of 5 boxes (CTU)',prog:{rungs:[NW('System on until the counter reaches 5',[[NO('I0.0')],[NO('M0.0')]],[NO('I0.1'),NO('I0.2'),NO('I0.5'),NCx('C0')],COIL('M0.0')),NW('Conveyor',[[NO('M0.0')]],[],COIL('Q0.0')),NW('Count every box that arrives at B (rising edge)',[[PE('I0.4')]],[],CTU('C0',5)),NW('START clears the counter for the next batch',[[NO('I0.0')]],[],RST('C0')),NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.1')),NW('Red light: stopped or batch done',[[NCx('M0.0')]],[],COIL('Q0.2'))]}}
   },
   task:{
     title:'From A to B',
@@ -2209,36 +2268,40 @@ const SCENE_B=makeFactory({
     addStack(W,{x:1.45,z:-0.75,h:1.45,lamps:[{color:0x2ee06a,addr:'Q0.3'},{color:0xffb21a,addr:'Q0.5'},{color:0xff3b30,addr:'Q0.4'}]});
     addECab(W,{x:-4.5,z:-1.35,rot:0.4});
     panelInputs(W);
-    W.inputs['I0.3']=()=>W.low.val; W.inputs['I0.4']=()=>W.high.val; W.inputs['I0.5']=()=>W.push.back(); W.inputs['I0.6']=()=>W.push.front(); W.inputs['I0.7']=()=>W.atP.val;
+    W.inputs['I0.3']=()=>W.low.val; W.inputs['I0.4']=()=>W.faults.beam?false:W.high.val;
+    W.extra=()=>{ W.push.limit=W.faults.air?0.45:1; }; W.inputs['I0.5']=()=>W.push.back(); W.inputs['I0.6']=()=>W.push.front(); W.inputs['I0.7']=()=>W.atP.val;
     W.outputs['Q0.0']=v=>W.conv.run=v; W.outputs['Q0.1']=v=>W.push.ext=v; W.outputs['Q0.2']=v=>W.side.run=v;
     W.track=()=>trackRun(W,2,'start',['stop','estop']);
   },
   tags:(W)=>[...PANEL_TAGS,
-    {addr:'I0.3',name:'Box present',kind:'Low beam, 0.12 m above the belt: sees every box',dir:'I',anchor:W.low.anchor},
-    {addr:'I0.4',name:'High box',kind:'High beam, 0.38 m above the belt: sees only tall boxes',dir:'I',anchor:V3(W.high.x,W.high.y+0.11,W.high.zA-0.012)},
-    {addr:'I0.5',name:'Pusher back',kind:'Cylinder switch, retracted end',dir:'I',anchor:W.push.anchorBack},
-    {addr:'I0.6',name:'Pusher front',kind:'Cylinder switch, extended end',dir:'I',anchor:W.push.anchorFront},
-    {addr:'I0.7',name:'Box at pusher',kind:'Diffuse sensor next to the pusher',dir:'I',anchor:W.atP.anchor},
-    {addr:'Q0.0',name:'Entry conveyor',kind:'Belt conveyor motor',dir:'Q',anchor:W.conv.anchor},
-    {addr:'Q0.1',name:'Pusher',kind:'Pneumatic cylinder, extend (spring return)',dir:'Q',anchor:W.push.anchor},
-    {addr:'Q0.2',name:'Side conveyor',kind:'Belt conveyor motor (high boxes)',dir:'Q',anchor:W.side.anchor},
-    {addr:'Q0.3',name:'Run light',kind:'Green lamp + stack light',dir:'Q'},
-    {addr:'Q0.4',name:'Stopped light',kind:'Red lamp + stack light',dir:'Q'},
-    {addr:'Q0.5',name:'Busy light',kind:'Yellow lamp + stack light',dir:'Q'}],
+    {addr:'I0.3',dev:'-B1',name:'Box present',kind:'Low beam, 0.12 m above the belt: sees every box',dir:'I',anchor:W.low.anchor},
+    {addr:'I0.4',dev:'-B2',name:'High box',kind:'High beam, 0.38 m above the belt: sees only tall boxes',dir:'I',anchor:V3(W.high.x,W.high.y+0.11,W.high.zA-0.012)},
+    {addr:'I0.5',dev:'-B3',name:'Pusher back',kind:'Cylinder switch, retracted end',dir:'I',anchor:W.push.anchorBack},
+    {addr:'I0.6',dev:'-B4',name:'Pusher front',kind:'Cylinder switch, extended end',dir:'I',anchor:W.push.anchorFront},
+    {addr:'I0.7',dev:'-B5',name:'Box at pusher',kind:'Diffuse sensor next to the pusher',dir:'I',anchor:W.atP.anchor},
+    {addr:'Q0.0',dev:'-K1',name:'Entry conveyor',kind:'Contactor coil → motor -M1',dir:'Q',anchor:W.conv.anchor},
+    {addr:'Q0.1',dev:'-Y1',name:'Pusher',kind:'5/2 solenoid valve coil → cylinder -MM1 (spring return)',dir:'Q',anchor:W.push.anchor},
+    {addr:'Q0.2',dev:'-K2',name:'Side conveyor',kind:'Contactor coil → motor -M2',dir:'Q',anchor:W.side.anchor},
+    {addr:'Q0.3',dev:'-P1',name:'Run light',kind:'Green lamp + stack light',dir:'Q'},
+    {addr:'Q0.4',dev:'-P2',name:'Stopped light',kind:'Red lamp + stack light',dir:'Q'},
+    {addr:'Q0.5',dev:'-P3',name:'Busy light',kind:'Amber lamp + stack light',dir:'Q'}],
   defaultEx:'run',
   examples:{
     run:{name:'Run the conveyors (start here)',prog:{rungs:[runLatch(),NW('Entry conveyor',[[NO('M0.0')]],[],COIL('Q0.0')),NW('Side conveyor',[[NO('M0.0')]],[],COIL('Q0.2')),NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.3')),NW('Red light: stopped',[[NCx('M0.0')]],[],COIL('Q0.4'))]}},
     sort:{name:'Sort by height (solution)',prog:{rungs:[
-      runLatch(),
+      NW('System on: START sets M0.0, M0.0 holds itself. STOP and E-stop are NC. A pusher fault (M0.3) also drops the system.',[[NO('I0.0')],[NO('M0.0')]],[NO('I0.1'),NO('I0.2'),NCx('M0.3')],COIL('M0.0')),
       NW('The high beam sees a tall box: remember it',[[NO('I0.4')]],[],SET('M0.1')),
       NW('Entry conveyor runs unless a remembered tall box is at the pusher, and only while the pusher is fully back',[[NCx('M0.1')],[NCx('I0.7')]],[NO('M0.0'),NO('I0.5')],COIL('Q0.0')),
       NW('Tall box at the pusher: push it onto the side conveyor',[[NO('I0.7')]],[NO('M0.0'),NO('M0.1')],SET('Q0.1')),
-      NW('Front limit reached, or system off: retract',[[NO('I0.6')],[NCx('M0.0')]],[],RST('Q0.1')),
-      NW('Front limit reached: forget the tall box',[[NO('I0.6')]],[],RST('M0.1')),
+      NW('Watchdog: valve on but no front limit within 3 s',[[NO('Q0.1')]],[NCx('I0.6')],TON('T1',3000)),
+      NW('Watchdog expired: latch a pusher fault',[[NO('T1')]],[],SET('M0.3')),
+      NW('Retract: front limit reached, system off, or watchdog',[[NO('I0.6')],[NCx('M0.0')],[NO('T1')]],[],RST('Q0.1')),
+      NW('Forget the tall box after the push, or after a fault',[[NO('I0.6')],[NO('M0.3')]],[],RST('M0.1')),
+      NW('START acknowledges the pusher fault',[[NO('I0.0')]],[],RST('M0.3')),
       NW('Side conveyor carries tall boxes away',[[NO('M0.0')]],[],COIL('Q0.2')),
       NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.3')),
       NW('Red light: stopped',[[NCx('M0.0')]],[],COIL('Q0.4')),
-      NW('Yellow light: pusher out',[[NCx('I0.5')]],[],COIL('Q0.5'))]}}
+      NW('Amber light: pusher out, or pusher fault',[[NCx('I0.5')],[NO('M0.3')]],[],COIL('Q0.5'))]}}
   },
   task:{
     title:'Sorting by height',
@@ -2301,11 +2364,12 @@ const SCENE_C=makeFactory({
     addECab(W,{x:-2.2,z:-1.0,rot:0.45});
     panelInputs(W);
     W.inputs['I0.3']=()=>TK.L>=0.9; W.inputs['I0.4']=()=>TK.L<=0.1; W.inputs['I0.5']=()=>W.panel.val('drain');
-    W.ai[0]=()=>{ const raw=Math.round(clamp(TK.L,0,1)*27648+(Math.random()-0.5)*24); return clamp(raw,0,27648); };
+    W.ai[0]=()=>{ if(W.faults.wire) return 0; const raw=Math.round(clamp(TK.L,0,1)*27648+(Math.random()-0.5)*24); return clamp(raw,0,27648); };
     W.outputs['Q0.0']=v=>TK.fill=v; W.outputs['Q0.1']=v=>TK.drain=v;
     W.extra=h=>{
       const L=TK.L, s=Math.sqrt(Math.max(0,L));
-      let d=(TK.fill?0.05:0)-(TK.drain?0.06*s:0)-0.035*TK.demand*s;
+      TK.flow=TK.fill||!!W.faults.stuck;
+      let d=(TK.flow?0.05:0)-(TK.drain?0.06*s:0)-0.035*TK.demand*s;
       TK.L=Math.max(0,L+d*h);
       if(TK.L>1){ TK.L=1; TK.spill=Math.min(1,TK.spill+0.04*h); if(!TK.overflow){ TK.overflow=true; W.stats.overflows=(W.stats.overflows||0)+1; toast('The tank overflowed.',true); } }
       else if(TK.L<0.995) TK.overflow=false;
@@ -2318,7 +2382,7 @@ const SCENE_C=makeFactory({
     W.track=()=>trackRun(W,2,'start',['stop','estop']);
     W.extraVis=()=>{
       const L=TK.L; water.scale.y=Math.max(0.002,L*H); water.position.y=Y0+L*H/2; water.visible=L>0.002;
-      const top=Y0+H+0.16, surf=Y0+L*H; W.stream.visible=TK.fill; W.stream.scale.y=Math.max(0.01,top-surf); W.stream.position.y=(top+surf)/2;
+      const top=Y0+H+0.16, surf=Y0+L*H; W.stream.visible=!!TK.flow; W.stream.scale.y=Math.max(0.01,top-surf); W.stream.position.y=(top+surf)/2;
       const dOn=TK.drain&&L>0.01; W.drainStream.visible=dOn; W.drainStream.scale.y=0.05; W.drainStream.position.y=0.03;
       const cOn=TK.demand>0.02&&L>0.01; W.consStream.visible=cOn; W.consStream.scale.y=Y0+0.05; W.consStream.position.y=(Y0+0.05)/2; W.consStream.scale.x=W.consStream.scale.z=0.4+TK.demand;
       W.wheel.rotation.z=TK.demand*Math.PI;
@@ -2330,23 +2394,24 @@ const SCENE_C=makeFactory({
   },
   reset(W){ Object.assign(W.tank,{L:0.25,overflow:false,spill:0}); },
   tags:(W)=>[...PANEL_TAGS,
-    {addr:'I0.3',name:'Level high',kind:'Capacitive level switch at 90 %',dir:'I',anchor:W.swAnch[0]},
-    {addr:'I0.4',name:'Level low',kind:'Capacitive level switch at 10 %',dir:'I',anchor:W.swAnch[1]},
-    {addr:'I0.5',name:'Drain button',kind:'Push button, NO (blue)',dir:'I'},
-    {addr:'IW64',name:'Level',kind:'Ultrasonic level sensor, 0–10 V on AI0 (0–27648 = 0–100 %)',dir:'AI',anchor:W.levelAnchor},
-    {addr:'Q0.0',name:'Fill valve',kind:'Solenoid valve, inlet',dir:'Q',anchor:V3(0,1.8+0.32+0.2,-0.75)},
-    {addr:'Q0.1',name:'Drain valve',kind:'Solenoid valve, outlet',dir:'Q',anchor:V3(0.82,0.58+0.2,0)},
-    {addr:'Q0.2',name:'Run light',kind:'Green lamp on the panel',dir:'Q'},
-    {addr:'Q0.3',name:'Alarm light',kind:'Red lamp on the panel',dir:'Q'}],
+    {addr:'I0.3',dev:'LSH-102',name:'Level high',kind:'Capacitive level switch at 90 %',dir:'I',anchor:W.swAnch[0]},
+    {addr:'I0.4',dev:'LSL-103',name:'Level low',kind:'Capacitive level switch at 10 %',dir:'I',anchor:W.swAnch[1]},
+    {addr:'I0.5',dev:'-S3',name:'Drain button',kind:'Push button, NO (blue)',dir:'I'},
+    {addr:'IW64',dev:'LT-101',name:'Level',kind:'Ultrasonic level sensor, 0–10 V on AI0 (0–27648 = 0–100 %)',dir:'AI',anchor:W.levelAnchor},
+    {addr:'Q0.0',dev:'XV-101',name:'Fill valve',kind:'Solenoid valve, inlet, 24 V DC coil, normally closed',dir:'Q',anchor:V3(0,1.8+0.32+0.2,-0.75)},
+    {addr:'Q0.1',dev:'XV-102',name:'Drain valve',kind:'Solenoid valve, outlet, 24 V DC coil, normally closed',dir:'Q',anchor:V3(0.82,0.58+0.2,0)},
+    {addr:'Q0.2',dev:'-P1',name:'Run light',kind:'Green lamp on the panel',dir:'Q'},
+    {addr:'Q0.3',dev:'-P2',name:'Alarm light',kind:'Red lamp on the panel',dir:'Q'}],
   defaultEx:'switch',
   examples:{
     switch:{name:'Fill to the high switch (start here)',prog:{rungs:[runLatch(),NW('Fill while the system is on, until the high level switch trips',[[NO('M0.0')]],[NCx('I0.3')],COIL('Q0.0')),NW('Drain while the drain button is held',[[NO('I0.5')]],[],COIL('Q0.1')),NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.2'))]}},
     level:{name:'Hold 40–70 % (analog solution)',prog:{rungs:[runLatch(),
-      NW('Level at or below 40 % (11059 of 27648): open the fill valve',[[CMP('IW64','<=',11059)]],[NO('M0.0')],SET('Q0.0')),
-      NW('Level at or above 70 % (19354), or system off: close it',[[CMP('IW64','>=',19354)],[NCx('M0.0')]],[],RST('Q0.0')),
+      NW('Wire-break check: a 0–10 V signal near 0 means the transmitter or its cable has failed',[[CMP('IW64','<=',200)]],[],COIL('M0.3')),
+      NW('Level at or below 40 % (11059 of 27648): open the fill valve, unless the high switch or a sensor fault blocks it',[[CMP('IW64','<=',11059)]],[NO('M0.0'),NCx('I0.3'),NCx('M0.3')],SET('Q0.0')),
+      NW('Close it at 70 % (19354), when the system stops, on the independent high switch, or on a sensor fault',[[CMP('IW64','>=',19354)],[NCx('M0.0')],[NO('I0.3')],[NO('M0.3')]],[],RST('Q0.0')),
       NW('Drain while the button is held, but never run the tank dry',[[NO('I0.5')]],[NCx('I0.4')],COIL('Q0.1')),
       NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.2')),
-      NW('Alarm: level critical (high or low switch)',[[NO('I0.3')],[NO('I0.4')]],[],COIL('Q0.3'))]}}
+      NW('Alarm: high switch, low switch, or level sensor failed',[[NO('I0.3')],[NO('I0.4')],[NO('M0.3')]],[],COIL('Q0.3'))]}}
   },
   task:{
     title:'Tank level control',
@@ -2428,7 +2493,7 @@ const SCENE_D=makeFactory({
     addECab(W,{x:-2.65,z:-1.25,rot:0.35});
     panelInputs(W);
     W.inputs['I0.3']=()=>R.door; W.inputs['I0.4']=()=>!R.trip; W.inputs['I0.5']=()=>W.panel.val('defrost');
-    W.ai[0]=()=>clamp(T2RAW(R.Tr)+Math.round((Math.random()-0.5)*16),0,27648); W.ai[1]=()=>clamp(T2RAW(R.Te)+Math.round((Math.random()-0.5)*16),0,27648);
+    W.ai[0]=()=>W.faults.tt?0:clamp(T2RAW(R.Tr)+Math.round((Math.random()-0.5)*16),0,27648); W.ai[1]=()=>clamp(T2RAW(R.Te)+Math.round((Math.random()-0.5)*16),0,27648);
     W.outputs['Q0.0']=v=>R.cmd=v; W.outputs['Q0.1']=v=>R.cf=v; W.outputs['Q0.2']=v=>R.ef=v; W.outputs['Q0.3']=v=>R.heater=v;
     W.extra=h=>{
       const f=W.flags, st=W.stats;
@@ -2436,7 +2501,7 @@ const SCENE_D=makeFactory({
       if(running&&!R.comp){ st.starts=(st.starts||0)+1; if(W.t-R.lastStop<8&&W.t>1){ st.short=(st.short||0)+1; if(st.short<=3) toast('Compressor short-cycled: it restarted less than 8 s after stopping.',true); } }
       if(!running&&R.comp) R.lastStop=W.t;
       R.comp=running;
-      const tgtP=running?(R.cf?14:26):8; R.P+=(tgtP-R.P)*Math.min(1,0.35*h);
+      const cfOn=R.cf&&!W.faults.cfan; const tgtP=running?(cfOn?14:26):8; R.P+=(tgtP-R.P)*Math.min(1,0.35*h);
       if(!R.trip&&R.P>=22){ R.trip=true; st.trips=(st.trips||0)+1; toast('High-pressure switch tripped: the condenser fan must run with the compressor.',true); }
       if(R.trip&&R.P<15) R.trip=false;
       const hx=(R.ef&&!R.heater)?0.02/(1+2*R.ice):0.003;
@@ -2448,7 +2513,7 @@ const SCENE_D=makeFactory({
       if(running&&R.Te<-2) R.ice=Math.min(1.5,R.ice+0.008*h*(R.ef?1:0.5));
       if(R.Te>1&&!R.heater) R.ice=Math.max(0,R.ice-0.002*h);
       R.Tr+=(0.004*(R.amb-R.Tr)+(R.door?0.03*(R.amb-R.Tr):0)+q+(R.heater?0.012:0)+(R.ef?0.002:0))*h;
-      R.efA+=(R.ef?22:0)*h; R.cfA+=(R.cf&&running?26:(R.cf?20:0))*h;
+      R.efA+=(R.ef?22:0)*h; R.cfA+=(R.cf&&!W.faults.cfan?(running?26:20):0)*h;
       const inBand=R.Tr>=-0.5&&R.Tr<=5.5; f.streak=(inBand&&plc.out[5])?(f.streak||0)+h:0; f.best=Math.max(f.best||0,f.streak);
       R.doorT=R.door?R.doorT+h:0; if(R.doorT>10&&plc.out[4]) f.doorAlarm=true;
       if(R.heater&&!running){ R.defT+=h; if(R.defT>3&&R.ice<0.05&&R.Te>2) f.defrost=true; } else R.defT=0;
@@ -2467,17 +2532,17 @@ const SCENE_D=makeFactory({
   },
   reset(W){ Object.assign(W.ref,{Tr:16,Te:16,ice:0,P:8,trip:false,door:false,comp:false,lastStop:-99,doorT:0,defT:0,dispT:-1}); },
   tags:(W)=>[...PANEL_TAGS,
-    {addr:'I0.3',name:'Door open',kind:'Door switch, 1 while the door is open',dir:'I',anchor:V3(1.45,2.0,0.5)},
-    {addr:'I0.4',name:'HP OK',kind:'High-pressure switch, NC: 0 when tripped (above 22 bar)',dir:'I',anchor:V3(-1.75,0.95,0.44)},
-    {addr:'I0.5',name:'Defrost button',kind:'Push button, NO (amber)',dir:'I'},
-    {addr:'IW64',name:'Room temp',kind:'Pt100 transmitter on AI0: −30…+20 °C = 0–10 V = 0…27648',dir:'AI',anchor:W.rsAnch,fmt:fmtC},
-    {addr:'IW66',name:'Coil temp',kind:'Evaporator coil sensor on AI1: −30…+20 °C = 0…27648',dir:'AI',anchor:V3(0.3,2.12,-0.72),fmt:fmtC},
-    {addr:'Q0.0',name:'Compressor',kind:'Compressor contactor',dir:'Q',anchor:V3(-2.25,0.75,0.15)},
-    {addr:'Q0.1',name:'Condenser fan',kind:'Fan on the condensing unit',dir:'Q',anchor:V3(-1.8,1.15,-0.25)},
-    {addr:'Q0.2',name:'Evaporator fans',kind:'Unit cooler fans inside the room',dir:'Q',anchor:V3(-0.25,2.15,-0.5)},
-    {addr:'Q0.3',name:'Defrost heater',kind:'Electric heater in the evaporator coil',dir:'Q',anchor:V3(0.75,2.15,-0.5)},
-    {addr:'Q0.4',name:'Alarm light',kind:'Red lamp on the panel',dir:'Q'},
-    {addr:'Q0.5',name:'Run light',kind:'Green lamp on the panel',dir:'Q'}],
+    {addr:'I0.3',dev:'ZS-204',name:'Door open',kind:'Door switch, 1 while the door is open',dir:'I',anchor:V3(1.45,2.0,0.5)},
+    {addr:'I0.4',dev:'PSH-203',name:'HP OK',kind:'High-pressure switch, NC: 0 when tripped (above 22 bar)',dir:'I',anchor:V3(-1.75,0.95,0.44)},
+    {addr:'I0.5',dev:'-S3',name:'Defrost button',kind:'Push button, NO (amber)',dir:'I'},
+    {addr:'IW64',dev:'TT-201',name:'Room temp',kind:'Pt100 transmitter on AI0: −30…+20 °C = 0–10 V = 0…27648',dir:'AI',anchor:W.rsAnch,fmt:fmtC},
+    {addr:'IW66',dev:'TT-202',name:'Coil temp',kind:'Evaporator coil sensor on AI1: −30…+20 °C = 0…27648',dir:'AI',anchor:V3(0.3,2.12,-0.72),fmt:fmtC},
+    {addr:'Q0.0',dev:'-K1',name:'Compressor',kind:'Compressor contactor',dir:'Q',anchor:V3(-2.25,0.75,0.15)},
+    {addr:'Q0.1',dev:'-K2',name:'Condenser fan',kind:'Fan on the condensing unit',dir:'Q',anchor:V3(-1.8,1.15,-0.25)},
+    {addr:'Q0.2',dev:'-K3',name:'Evaporator fans',kind:'Unit cooler fans inside the room',dir:'Q',anchor:V3(-0.25,2.15,-0.5)},
+    {addr:'Q0.3',dev:'-K4',name:'Defrost heater',kind:'Electric heater in the evaporator coil',dir:'Q',anchor:V3(0.75,2.15,-0.5)},
+    {addr:'Q0.4',dev:'-P2',name:'Alarm light',kind:'Red lamp on the panel',dir:'Q'},
+    {addr:'Q0.5',dev:'-P1',name:'Run light',kind:'Green lamp on the panel',dir:'Q'}],
   defaultEx:'thermo',
   examples:{
     thermo:{name:'Simple thermostat (start here)',prog:{rungs:[runLatch(),
@@ -2498,7 +2563,8 @@ const SCENE_D=makeFactory({
       NW('Evaporator fans: on while running, off with the door open or during defrost',[[NO('M0.0')]],[NCx('I0.3'),NCx('M0.2')],COIL('Q0.2')),
       NW('Defrost heater',[[NO('M0.2')]],[NO('M0.0')],COIL('Q0.3')),
       NW('Door open for 10 s',[[NO('I0.3')]],[],TON('T1',10000)),
-      NW('Alarm: door left open, or high-pressure trip',[[NO('T1')],[NCx('I0.4')]],[],COIL('Q0.4')),
+      NW('Sensor check: a room reading at the very bottom of the range means a broken wire or failed transmitter',[[CMP('IW64','<=',300)]],[],COIL('M0.3')),
+      NW('Alarm: door left open, high-pressure trip, or room sensor fault',[[NO('T1')],[NCx('I0.4')],[NO('M0.3')]],[],COIL('Q0.4')),
       NW('Green light: running',[[NO('M0.0')]],[],COIL('Q0.5'))]}}
   },
   task:{
@@ -2515,6 +2581,376 @@ const SCENE_D=makeFactory({
     settings:W=>[{type:'toggle',label:'Cold room door open',get:()=>W.ref.door,set:v=>W.ref.door=v},{type:'range',label:'Outside temperature',min:20,max:40,get:()=>W.ref.amb,set:v=>W.ref.amb=v,fmt:v=>v+' °C'}]
   }
 });
+
+/* ================= Learn: engineering drawings and plant knowledge ================= */
+const SV={ink:'#1d2125',mute:'#5c6670',red:'#c62828',blue:'#1f4fb5',bn:'#8a5426',bu:'#2f6fd6',bk:'#111111',paper:'#fbfbf8',ge:'#2e9e44',orange:'#d9822b'};
+const sT=(x,y,t,o={})=>`<text x="${x}" y="${y}" font-family="JetBrains Mono, ui-monospace, monospace" font-size="${o.fs||10}" fill="${o.c||SV.ink}" text-anchor="${o.a||'start'}" font-weight="${o.w||400}">${esc(t)}</text>`;
+const sL=(x1,y1,x2,y2,c,w,dash)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c||SV.ink}" stroke-width="${w||1.4}"${dash?` stroke-dasharray="${dash}"`:''} fill="none"/>`;
+const sDot=(x,y,c)=>`<circle cx="${x}" cy="${y}" r="2.8" fill="${c||SV.ink}"/>`;
+const sTerm=(x,y)=>`<circle cx="${x}" cy="${y}" r="3.6" fill="#fff" stroke="${SV.ink}" stroke-width="1.2"/>`;
+function sTitle(W,H,title,sheet){ const x=W-340,y=H-60;
+  return `<rect x="${x}" y="${y}" width="330" height="52" fill="#fff" stroke="${SV.ink}"/>`+sL(x,y+18,x+330,y+18)+sL(x+228,y,x+228,y+52)+
+    sT(x+6,y+13,'Eros Automation Lab',{fs:10,w:700})+sT(x+234,y+13,sheet,{fs:9})+sT(x+6,y+33,title,{fs:11,w:700})+sT(x+234,y+33,'=A1 +CP1',{fs:9})+sT(x+6,y+46,'IEC 81346 tags · IEC 60617 symbols',{fs:8,c:SV.mute})+sT(x+234,y+46,'teaching drawing',{fs:8,c:SV.mute}); }
+function svgWrap(W,H,body){ return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img"><rect width="${W}" height="${H}" fill="${SV.paper}"/>${body}</svg>`; }
+function sContact(x,y,nc){ let s=sL(x,y,x,y+8)+sL(x,y+28,x,y+36); s+= nc ? sL(x,y+8,x+9,y+30)+sL(x,y+28,x+11,y+28) : sL(x,y+8,x-10,y+28); return s; }
+function sActuator(x,y,kind){
+  let s=sL(x-5,y,x-22,y,SV.ink,1,'3 2');
+  if(kind==='push') s+=sL(x-22,y-6,x-22,y+6)+sL(x-22,y-6,x-27,y-6)+sL(x-22,y+6,x-27,y+6);
+  if(kind==='estop') s+=`<path d="M${x-23} ${y-10} A10 10 0 0 0 ${x-23} ${y+10} Z" fill="${SV.red}" stroke="${SV.ink}"/>`;
+  if(kind==='reed') s+=`<path d="M${x-30} ${y} l5 -6 l5 6 l-5 6 z" fill="none" stroke="${SV.ink}"/>`;
+  if(kind==='aux') s+=sT(x-40,y+4,'-Q',{fs:9,w:700});
+  if(kind==='door') s+=`<circle cx="${x-27}" cy="${y}" r="5" fill="none" stroke="${SV.ink}"/>`;
+  if(kind==='press') s+=sT(x-42,y+4,'P>',{fs:9,w:700});
+  return s;
+}
+/* control circuit: 24 V rails, input devices, the CPU's real input and relay structure, loads */
+function ctrlSVG(Lr){
+  const C=76, X0=300, yL=40, yM=58, yT=250, yB=370, yL2=396, yM2=500;
+  const ai=Lr.io.filter(r=>r.addr.startsWith('IW'));
+  const diX=i=>X0+i*C, axX=j=>X0+8*C+16+j*C, qX=i=>X0+(i<4?i:i+1)*C;
+  const x1M=X0-C, xLp=X0-2.3*C, xMp=X0-1.75*C;
+  const W=(ai.length?axX(2):diX(7))+90, H=640;
+  let s='';
+  s+=`<rect x="14" y="26" width="70" height="44" fill="#fff" stroke="${SV.ink}"/>`+sT(49,42,'-G1',{fs:10,a:'middle',w:700})+sT(49,54,'PSU 24 V',{fs:8,a:'middle'})+sT(49,64,'DC 5 A',{fs:8,a:'middle'});
+  s+=sL(84,yL,W-20,yL,SV.red,2.2)+sL(84,yM,W-20,yM,SV.blue,2.2)+sT(W-22,yL-5,'L+ 24 V DC',{fs:9,a:'end',c:SV.red,w:700})+sT(W-22,yM+13,'M 0 V',{fs:9,a:'end',c:SV.blue,w:700});
+  s+=sL(96,yL,96,yL2,SV.red,2)+sL(106,yM,106,yM2,SV.blue,2)+sDot(96,yL,SV.red)+sDot(106,yM,SV.blue);
+  s+=sL(49,70,49,86)+sL(40,86,58,86)+sL(43,90,55,90)+sL(46,94,52,94)+sT(62,92,'0 V earthed (PELV)',{fs:8,c:SV.mute});
+  s+=sL(84,yL2,W-20,yL2,SV.red,2.2)+sL(84,yM2,W-20,yM2,SV.blue,2.2)+sDot(96,yL2,SV.red)+sDot(106,yM2,SV.blue);
+  s+=sT(114,yL2-5,'L+ 24 V DC for the outputs (via fuse -F2 4 A)',{fs:9,c:SV.red,w:700})+sT(W-22,yM2+13,'M 0 V',{fs:9,a:'end',c:SV.blue,w:700});
+  const bx0=xLp-24, bx1=W-40;
+  s+=`<rect x="${bx0}" y="${yT}" width="${bx1-bx0}" height="${yB-yT}" fill="#eef2f6" stroke="${SV.ink}" stroke-width="1.6"/>`;
+  s+=sT((bx0+bx1)/2,yT+62,'-A1   SIMATIC S7-1200 CPU 1212C DC/DC/RLY',{fs:12,a:'middle',w:700});
+  s+=sT((bx0+bx1)/2,yT+76,'DI a: sinking inputs, current flows into the pin and out via 1M · DQ a: relay contacts from 1L / 2L',{fs:9,a:'middle',c:SV.mute});
+  s+=sL(xLp,yL,xLp,yT,SV.red,1.6)+sDot(xLp,yL,SV.red)+sTerm(xLp,yT)+sT(xLp,yT+16,'L+',{fs:9,a:'middle'});
+  s+=sL(xMp,yM,xMp,yT,SV.blue,1.6)+sDot(xMp,yM,SV.blue)+sTerm(xMp,yT)+sT(xMp,yT+16,'M',{fs:9,a:'middle'});
+  s+=sT((xLp+xMp)/2,yT+30,'CPU supply',{fs:8,a:'middle',c:SV.mute});
+  s+=sL(x1M,yM,x1M,yT,SV.blue,1.6)+sDot(x1M,yM,SV.blue)+sTerm(x1M,yT)+sT(x1M-6,yT+16,'1M',{fs:9,a:'end'});
+  s+=sL(x1M,yT,x1M,yT+44)+sL(x1M,yT+44,diX(7),yT+44);
+  for(let i=0;i<8;i++){
+    const x=diX(i), r=Lr.io.find(q=>q.addr==='I0.'+i);
+    s+=sTerm(x,yT)+sT(x+5,yT+16,'.'+i,{fs:9})+sL(x,yT,x,yT+20)+`<rect x="${x-4}" y="${yT+20}" width="8" height="14" fill="#fff" stroke="${SV.ink}"/>`+sL(x,yT+34,x,yT+44)+sDot(x,yT+44);
+    if(!r){ s+=sT(x,yT-10,'spare',{fs:8,a:'middle',c:SV.mute}); continue; }
+    s+=inDev(r,x);
+  }
+  if(ai.length){
+    const x2=axX(0); s+=sL(x2,yM,x2,yT,SV.blue,1.6)+sDot(x2,yM,SV.blue)+sTerm(x2,yT)+sT(x2+5,yT+16,'2M',{fs:9});
+    s+=`<rect x="${x2+14}" y="${yT+24}" width="${axX(2)-x2+8}" height="22" fill="#fff" stroke="${SV.ink}"/>`+sT((x2+axX(2))/2+18,yT+39,'ADC 0–10 V → 0…27648',{fs:8,a:'middle'});
+    [1,2].forEach(j=>{ const x=axX(j), r=Lr.io.find(q=>q.addr===(j===1?'IW64':'IW66')); s+=sTerm(x,yT)+sT(x+5,yT+16,j===1?'AI0':'AI1',{fs:9})+sL(x,yT,x,yT+24);
+      if(r) s+=aiDev(r,x); else s+=sT(x,yT-10,'spare',{fs:8,a:'middle',c:SV.mute}); });
+  }
+  function inDev(r,x){
+    let t='';
+    const lab=y=>sT(x+6,y,r.tag,{fs:10,w:700})+sT(x+6,y+12,r.short,{fs:9})+sT(x+6,y+23,r.sig2||'',{fs:8,c:SV.mute});
+    if(r.sym==='pnp'){
+      const by=118; t+=`<rect x="${x-18}" y="${by}" width="36" height="34" rx="3" fill="#fff" stroke="${SV.ink}"/>`+sT(x,by+14,r.box||'PNP',{fs:9,a:'middle',w:700})+sT(x,by+26,r.box2||'',{fs:7.5,a:'middle',c:SV.mute});
+      t+=sL(x-10,by,x-10,yL,SV.bn,1.5)+sDot(x-10,yL,SV.red)+sL(x+10,by,x+10,yM,SV.bu,1.5)+sDot(x+10,yM,SV.blue)+sL(x,by+34,x,yT,SV.bk,1.5);
+      t+=sT(x-12,by-6,'BN',{fs:7,c:SV.bn,a:'end'})+sT(x+12,by-6,'BU',{fs:7,c:SV.bu})+sT(x+4,by+46,'BK',{fs:7})+lab(by+70);
+    } else {
+      const cy=104; t+=sL(x,yL,x,cy)+sDot(x,yL,SV.red)+sContact(x,cy,r.sym==='nc'||r.sym==='estop')+sActuator(x,cy+18,r.act||(r.sym==='estop'?'estop':'push'))+sL(x,cy+36,x,yT);
+      t+=sT(x+5,cy+8,r.tA||(r.sym==='no'?'13':'11'),{fs:8,c:SV.mute})+sT(x+5,cy+36,r.tB||(r.sym==='no'?'14':'12'),{fs:8,c:SV.mute})+lab(170);
+    }
+    return t;
+  }
+  function aiDev(r,x){
+    let t=`<circle cx="${x}" cy="135" r="19" fill="#fff" stroke="${SV.ink}"/>`+sL(x-19,135,x+19,135)+sT(x,131,r.isa[0],{fs:9,a:'middle',w:700})+sT(x,147,r.isa[1],{fs:8.5,a:'middle'});
+    t+=sL(x-12,120,x-12,yL,SV.bn,1.5)+sDot(x-12,yL,SV.red)+sL(x+12,120,x+12,yM,SV.bu,1.5)+sDot(x+12,yM,SV.blue)+sL(x,154,x,yT+24,SV.bk,1.5)+sT(x+4,190,'0–10 V',{fs:8});
+    return t+sT(x+6,206,r.tag,{fs:10,w:700})+sT(x+6,218,r.short,{fs:9})+sT(x+6,229,r.sig2||'',{fs:8,c:SV.mute});
+  }
+  const groups=[{c:x1M,name:'1L',qs:[0,1,2,3]},{c:qX(4)-C,name:'2L',qs:[4,5]}];
+  groups.forEach(g=>{
+    const by=yB-32; s+=sTerm(g.c,yB)+sT(g.c-6,yB-6,g.name,{fs:9,a:'end'})+sL(g.c,yB,g.c,by)+sL(g.c,by,qX(g.qs[g.qs.length-1]),by);
+    s+=sL(g.c,yB,g.c,yL2,SV.red,1.6)+sDot(g.c,yL2,SV.red);
+    g.qs.forEach(i=>{ const x=qX(i); s+=sDot(x,by)+sL(x,by,x,by+6)+sL(x,by+6,x-8,by+22)+sL(x,by+24,x,yB)+sTerm(x,yB)+sT(x+5,yB-6,'.'+i,{fs:9}); });
+  });
+  s+=sT(bx0+6,yB-36,'relay contacts (2 A)',{fs:8,c:SV.mute});
+  for(let i=0;i<6;i++){
+    const x=qX(i), r=Lr.io.find(q=>q.addr==='Q0.'+i), cy=yL2+30;
+    if(!r){ s+=sT(x+6,yB+16,'spare',{fs:8,c:SV.mute}); continue; }
+    s+=sL(x,yB,x,cy);
+    if(r.sym==='lamp'){ s+=`<circle cx="${x}" cy="${cy+17}" r="12" fill="#fff" stroke="${SV.ink}"/>`+sL(x-8.5,cy+8.5,x+8.5,cy+25.5)+sL(x+8.5,cy+8.5,x-8.5,cy+25.5)+sL(x,cy+29,x,cy+34); }
+    else { s+=`<rect x="${x-11}" y="${cy}" width="22" height="34" fill="#fff" stroke="${SV.ink}" stroke-width="1.4"/>`; if(r.sym==='valve') s+=sL(x-11,cy+34,x+11,cy); s+=sT(x-14,cy+9,'A1',{fs:7.5,a:'end',c:SV.mute})+sT(x-14,cy+33,'A2',{fs:7.5,a:'end',c:SV.mute});
+      s+=sL(x+11,cy+4,x+20,cy+4,SV.ink,1)+sL(x+20,cy+4,x+20,cy+30,SV.ink,1)+sL(x+20,cy+30,x+11,cy+30,SV.ink,1)+`<path d="M${x+15} ${cy+21} l10 0 l-5 -8 z" fill="${SV.ink}"/>`+sL(x+15,cy+12,x+25,cy+12,SV.ink,1); }
+    s+=sL(x,cy+34,x,yM2)+sDot(x,yM2,SV.blue);
+    s+=sT(x,yM2+16,r.tag,{fs:10,a:'middle',w:700})+sT(x,yM2+28,r.short,{fs:8.5,a:'middle'})+sT(x,yM2+39,r.sig2||'',{fs:7.5,a:'middle',c:SV.mute});
+  }
+  s+=sT(20,yM2+64,'Wire colours (IEC 60204-1): 24 V DC control = dark blue, power = black, N = light blue, PE = green/yellow. Sensor cores: BN +24 V, BU 0 V, BK signal.',{fs:8.5,c:SV.mute});
+  s+=sT(20,yM2+77,'Coils and solenoids carry a suppressor diode so the relay contacts in the CPU are not burnt by the coil’s turn-off spike.',{fs:8.5,c:SV.mute});
+  s+=sTitle(W,H,'Control circuit 24 V DC · PLC I/O','Sheet 2');
+  return svgWrap(W,H,s);
+}
+/* power circuit: 400 V 3~ feed, motor protective breakers, contactors, motors or heaters */
+function powerSVG(Lr){
+  const P=Lr.power||[]; if(!P.length) return '';
+  const C=200, X0=210, W=X0+P.length*C+60, H=520, ph=[[40,SV.bn,'L1'],[54,'#111','L2'],[68,'#8a8f94','L3']], yPE=84;
+  let s=`<rect x="14" y="28" width="150" height="66" fill="#fff" stroke="${SV.ink}"/>`+sT(89,46,'-Q0 main switch',{fs:10,a:'middle',w:700})+sT(89,60,'400 V 3~ 50 Hz',{fs:9,a:'middle'})+sT(89,73,'lockable for LOTO',{fs:8.5,a:'middle',c:SV.mute})+sT(89,86,'TN-S supply',{fs:8.5,a:'middle',c:SV.mute});
+  ph.forEach(([y,c,n])=>{ s+=sL(164,y,W-20,y,c,2.2)+sT(W-22,y-3,n,{fs:9,a:'end',c,w:700}); });
+  s+=sL(164,yPE,W-20,yPE,SV.ge,2.2,'8 4')+sT(W-22,yPE-3,'PE',{fs:9,a:'end',c:SV.ge,w:700});
+  P.forEach((b,i)=>{
+    const cx=X0+i*C+40, xs=[cx-20,cx,cx+20];
+    xs.forEach((x,k)=>{ s+=sL(x,ph[k][0],x,130,'#111',1.4)+sDot(x,ph[k][0],ph[k][2]==='L1'?SV.bn:'#111'); });
+    s+=`<rect x="${cx-34}" y="128" width="68" height="64" fill="none" stroke="${SV.ink}" stroke-dasharray="4 3"/>`;
+    xs.forEach(x=>{ s+=sL(x,130,x,138)+sL(x,138,x-8,156)+sL(x,158,x,166)+`<rect x="${x-4}" y="166" width="8" height="10" fill="#fff" stroke="${SV.ink}"/>`+sL(x,176,x,214); });
+    s+=sT(cx-30,188,b.q==='F'?'':'I>',{fs:8,c:SV.mute});
+    s+=sT(cx+40,142,b.q,{fs:10,w:700})+sT(cx+40,155,b.qType,{fs:8.5})+sT(cx+40,167,b.qSet||'',{fs:8,c:SV.mute})+sT(cx+40,179,b.qAux||'',{fs:8,c:SV.blue});
+    xs.forEach(x=>{ s+=sL(x,214,x,222)+sL(x,222,x-8,240)+sL(x,242,x,286); });
+    s+=sL(cx-24,232,cx+16,232,SV.ink,1,'3 2');
+    s+=sT(cx+40,226,b.k,{fs:10,w:700})+sT(cx+40,239,'contactor, AC-3',{fs:8.5})+sT(cx+40,251,'coil A1-A2 ← '+b.coil,{fs:8,c:SV.blue});
+    s+=sT(cx-26,220,'1',{fs:7,c:SV.mute,a:'end'})+sT(cx-26,250,'2',{fs:7,c:SV.mute,a:'end'});
+    if(b.load==='heater'){
+      xs.forEach(x=>{ s+=`<rect x="${x-5}" y="290" width="10" height="34" fill="#fff" stroke="${SV.ink}"/>`+sL(x,324,x,334); }); s+=sL(cx-20,334,cx+20,334)+sT(cx,350,'star point',{fs:7.5,a:'middle',c:SV.mute});
+    } else {
+      xs.forEach((x,k)=>{ s+=sL(x,286,cx+(k-1)*10,300); });
+      s+=`<circle cx="${cx}" cy="326" r="28" fill="#fff" stroke="${SV.ink}" stroke-width="1.5"/>`+sT(cx,323,'M',{fs:13,a:'middle',w:700})+sT(cx,339,'3~',{fs:10,a:'middle'});
+      s+=sT(cx-26,298,'U1',{fs:7,c:SV.mute,a:'end'})+sT(cx+26,298,'W1',{fs:7,c:SV.mute});
+    }
+    s+=sL(cx-52,yPE,cx-52,326,SV.ge,1.6,'6 3')+sL(cx-52,326,cx-(b.load==='heater'?26:28),326,SV.ge,1.6,'6 3')+sDot(cx-52,yPE,SV.ge);
+    s+=sT(cx,384,b.m,{fs:11,a:'middle',w:700})+sT(cx,398,b.label,{fs:9,a:'middle'})+sT(cx,411,b.rating,{fs:8.5,a:'middle',c:SV.mute});
+  });
+  s+=sT(20,H-80,'The PLC never switches 400 V: its relay output only energises the 24 V DC coil of the contactor (see sheet 2).',{fs:9,c:SV.mute});
+  s+=sT(20,H-67,'Phase colours IEC 60445: L1 brown, L2 black, L3 grey, PE green/yellow.',{fs:9,c:SV.mute});
+  s+=sTitle(W,H,'Power circuit 400 V 3~','Sheet 1');
+  return svgWrap(W,H,s);
+}
+/* ISA instrument bubble */
+const sBub=(x,y,a,b,line)=>`<circle cx="${x}" cy="${y}" r="19" fill="#fff" stroke="${SV.ink}" stroke-width="1.4"/>`+(line!==false?sL(x-19,y,x+19,y):'')+sT(x,y-4,a,{fs:9,a:'middle',w:700})+sT(x,y+12,b,{fs:8.5,a:'middle'});
+const sValve=(x,y,auto)=>`<path d="M${x-12} ${y-8} L${x+12} ${y+8} L${x+12} ${y-8} L${x-12} ${y+8} Z" fill="#fff" stroke="${SV.ink}" stroke-width="1.4"/>`+(auto?sL(x,y,x,y-22)+`<rect x="${x-9}" y="${y-38}" width="18" height="16" fill="#fff" stroke="${SV.ink}"/>`+sT(x,y-26,'S',{fs:9,a:'middle',w:700}):sL(x,y,x,y-16)+sL(x-8,y-16,x+8,y-16));
+const sArrow=(x,y,dir,c)=>{ const d={r:`M${x} ${y} l-8 -5 l0 10 z`,l:`M${x} ${y} l8 -5 l0 10 z`,d:`M${x} ${y} l-5 -8 l10 0 z`,u:`M${x} ${y} l-5 8 l10 0 z`}[dir]; return `<path d="${d}" fill="${c||SV.ink}"/>`; };
+function pidTank(){
+  const W=940,H=600; let s='';
+  s+=sL(30,70,440,70,SV.ink,2.4)+sL(440,70,440,112,SV.ink,2.4)+sArrow(440,112,'d')+sT(34,62,'Water supply 3 bar',{fs:9,c:SV.mute});
+  s+=sValve(220,70,true)+sBub(170,30,'XV','101')+sL(189,30,211,32,SV.ink,1,'5 3')+sT(110,24,'Q0.0',{fs:9,c:SV.blue,a:'end'})+sL(112,22,151,28,SV.blue,1,'5 3');
+  s+=`<path d="M360 140 Q360 112 440 112 Q520 112 520 140 L520 380 Q520 408 440 408 Q360 408 360 380 Z" fill="#fff" stroke="${SV.ink}" stroke-width="2"/>`;
+  s+=`<rect x="363" y="${408-0.55*268}" width="154" height="${0.55*268-4}" fill="#d6e8f8"/>`+sT(440,270,'TK-101',{fs:12,a:'middle',w:700})+sT(440,285,'buffer tank',{fs:9,a:'middle'})+sT(440,298,'300 L',{fs:9,a:'middle',c:SV.mute});
+  const y90=408-0.9*268, y10=408-0.1*268;
+  s+=sL(520,y90,610,y90)+sBub(630,y90,'LSH','102')+sL(649,y90,760,y90,SV.blue,1,'5 3')+sT(764,y90+4,'I0.3 high 90 %',{fs:9,c:SV.blue});
+  s+=sL(520,y10,610,y10)+sBub(630,y10,'LSL','103')+sL(649,y10,760,y10,SV.blue,1,'5 3')+sT(764,y10+4,'I0.4 low 10 %',{fs:9,c:SV.blue});
+  s+=sL(480,112,480,62)+sL(480,62,560,62)+sBub(580,62,'LT','101')+sL(599,62,760,62,SV.blue,1,'5 3')+sT(764,66,'AI0 %IW64 0–10 V',{fs:9,c:SV.blue});
+  s+=sT(484,90,'ultrasonic',{fs:8,c:SV.mute});
+  s+=sL(470,408,470,450,SV.ink,2.4)+sL(470,450,900,450,SV.ink,2.4)+sArrow(900,450,'r')+sT(820,468,'to drain',{fs:9,c:SV.mute});
+  s+=sValve(640,450,true)+sBub(690,412,'XV','102')+sL(671,414,651,425,SV.ink,1,'5 3')+sT(716,404,'Q0.1',{fs:9,c:SV.blue});
+  s+=sL(410,408,410,450,SV.ink,2.4)+sL(410,450,40,450,SV.ink,2.4)+sArrow(40,450,'l')+sT(46,468,'to consumer',{fs:9,c:SV.mute});
+  s+=sValve(230,450,false)+sT(230,426,'HV-103',{fs:9,a:'middle',w:700})+sT(230,484,'hand valve (demand)',{fs:8,a:'middle',c:SV.mute});
+  s+=sT(30,H-74,'P&ID legend: circle = field instrument · solid line = process pipe · dashed = electrical signal to the PLC',{fs:9,c:SV.mute});
+  s+=sT(30,H-61,'Letters (ISA 5.1): L level, T transmitter, S switch, H high, L low (2nd letter), X on/off valve, H hand',{fs:9,c:SV.mute});
+  s+=sTitle(W,H,'P&ID · Buffer tank TK-101','Sheet 3');
+  return svgWrap(W,H,s);
+}
+function pidFridge(){
+  const W=1000,H=630; let s='';
+  s+=`<rect x="520" y="50" width="440" height="330" fill="#eef6fc" stroke="${SV.ink}" stroke-dasharray="7 4"/>`+sT(530,68,'Cold room +2 °C (insulated panels)',{fs:10,w:700});
+  s+=`<rect x="600" y="92" width="260" height="70" fill="#fff" stroke="${SV.ink}" stroke-width="1.6"/>`;
+  let zz='M610 127'; for(let i=0;i<12;i++) zz+=` l10 ${i%2?16:-16}`; s+=`<path d="${zz}" fill="none" stroke="${SV.ink}"/>`;
+  s+=sL(612,152,848,152,SV.red,1.6,'2 3')+sT(730,176,'E-201 evaporator + E1 defrost heater (red)',{fs:8.5,a:'middle'});
+  [665,795].forEach(x=>{ s+=`<circle cx="${x}" cy="210" r="16" fill="#fff" stroke="${SV.ink}"/>`+sT(x,214,'M',{fs:10,a:'middle',w:700})+sL(x,194,x,162); }); s+=sT(730,240,'-M3 evaporator fans ← Q0.2 via -K3',{fs:8.5,a:'middle',c:SV.blue});
+  s+=`<rect x="70" y="80" width="190" height="80" fill="#fff" stroke="${SV.ink}" stroke-width="1.6"/>`; zz='M80 120'; for(let i=0;i<16;i++) zz+=` l10 ${i%2?16:-16}`; s+=`<path d="${zz}" fill="none" stroke="${SV.ink}"/>`;
+  s+=sT(165,176,'E-202 air-cooled condenser',{fs:8.5,a:'middle'})+`<circle cx="165" cy="58" r="16" fill="#fff" stroke="${SV.ink}"/>`+sT(165,62,'M',{fs:10,a:'middle',w:700})+sL(165,74,165,80)+sT(190,40,'-M2 condenser fan ← Q0.1 via -K2',{fs:8.5,c:SV.blue});
+  s+=`<circle cx="165" cy="420" r="40" fill="#fff" stroke="${SV.ink}" stroke-width="1.6"/>`+sL(130,400,200,410)+sL(130,440,200,430)+sT(116,414,'C-201 compressor',{fs:8.5,a:'end'})+sT(116,427,'-M1 ← Q0.0 via -K1',{fs:8.5,a:'end',c:SV.blue});
+  s+=sL(165,380,165,160,SV.red,2.6)+sArrow(165,300,'u',SV.red)+sT(172,330,'hot gas',{fs:8.5,c:SV.red});
+  s+=sL(260,120,420,120,SV.orange,2.6)+sL(420,120,420,127,SV.orange,2.6)+sArrow(350,120,'r',SV.orange)+sT(300,112,'liquid',{fs:8.5,c:SV.orange});
+  s+=`<path d="M432 115 L456 139 L456 115 L432 139 Z" fill="#fff" stroke="${SV.ink}"/>`+sL(420,127,432,127,SV.orange,2.6)+sL(456,127,600,127,SV.bu,2.6)+sT(444,104,'TXV',{fs:9,a:'middle',w:700})+sT(444,158,'expansion valve',{fs:8,a:'middle',c:SV.mute});
+  s+=sL(860,127,900,127,SV.bu,2.6)+sL(900,127,900,470,SV.bu,2.6)+sL(900,470,205,470,SV.bu,2.6)+sL(205,470,205,430,SV.bu,2.6)+sArrow(600,470,'l',SV.bu)+sT(560,462,'suction (cold vapour)',{fs:8.5,c:SV.bu});
+  s+=sL(165,300,250,300)+sBub(270,300,'PSH','203')+sL(289,300,420,300,SV.blue,1,'5 3')+sT(424,296,'I0.4 + hard-wired',{fs:9,c:SV.blue})+sT(424,309,'stop of -K1 at 22 bar',{fs:9,c:SV.blue});
+  s+=sBub(600,330,'TT','201')+sT(622,352,'room air',{fs:8,c:SV.mute})+sL(600,349,600,440,SV.blue,1,'5 3')+sT(606,438,'AI0 %IW64',{fs:9,c:SV.blue});
+  s+=sL(730,162,730,270)+sBub(730,289,'TT','202')+sL(749,289,800,289,SV.blue,1,'5 3')+sT(804,293,'AI1 %IW66 (coil)',{fs:9,c:SV.blue});
+  s+=sL(960,230,960,330,'#fbfbf8',6)+sT(966,250,'door',{fs:8.5,c:SV.mute})+sBub(930,345,'ZS','204')+sL(949,345,990,345,SV.blue,1,'5 3')+sT(944,374,'I0.3',{fs:9,c:SV.blue});
+  s+=sT(30,H-74,'Refrigerant loop: compressor → condenser (heat out) → expansion valve → evaporator (heat in from the room) → back to the compressor',{fs:9,c:SV.mute});
+  s+=sT(30,H-61,'ISA 5.1: P pressure, T temperature, Z position, SH switch high, T transmitter',{fs:9,c:SV.mute});
+  s+=sTitle(W,H,'P&ID · Cold room refrigeration','Sheet 3');
+  return svgWrap(W,H,s);
+}
+
+/* ================= plant knowledge per scene ================= */
+const LEARN={
+a:{
+  plant:['In a real plant this is a <b>transfer conveyor</b>: the belt that carries cartons from a packing machine to a palletiser, or between two stations in a distribution centre. The belt is driven by a small three-phase geared motor <b>-M1</b> (0.37 kW, 400 V).',
+    'The PLC never switches that motor directly. Its relay output <b>Q0.0</b> energises the 24 V DC coil of contactor <b>-K1</b>; the contactor’s main contacts connect the motor to the 400 V supply through the motor protective circuit breaker <b>-Q1</b>, which trips if the motor overloads. An auxiliary contact on -Q1 tells the PLC (I0.5) whether the breaker is on.',
+    'Two retro-reflective photoelectric sensors watch the belt: <b>-B1</b> at the infeed (A) and <b>-B2</b> at the discharge (B). Each sends a light beam across the belt to a reflector and switches its output when a carton breaks the beam. The operator runs the line from a pedestal control station with START, STOP and an emergency stop.'],
+  tags:'Device tags follow IEC 81346: -S push buttons, -B sensors, -K contactors, -Q breakers, -M motors, -P lamps, -A1 the PLC, -G1 the 24 V supply.',
+  io:[
+    {addr:'I0.0',tag:'-S1',short:'START',sym:'no',sig2:'NO 13-14',type:'Push button 22 mm, green, 1 NO contact (13-14)',norm:'0',why:'Momentary: it is 1 only while held, so the program must latch it with a self-hold.'},
+    {addr:'I0.1',tag:'-S2',short:'STOP',sym:'nc',sig2:'NC 11-12',type:'Push button 22 mm, red, 1 NC contact (11-12)',norm:'1',why:'Wired NC so a broken wire, loose terminal or missing contact block stops the machine instead of making STOP useless (fail-safe).'},
+    {addr:'I0.2',tag:'-S0',short:'E-STOP',sym:'estop',sig2:'NC, latching',type:'Emergency stop, red mushroom on yellow, latching, 2 NC contacts',norm:'1',why:'One NC goes to the PLC so the program knows; the second NC opens the safety relay -K0, which removes 24 V from the contactor coils in hardware. A real E-stop never relies on the PLC program alone (IEC 60204-1, ISO 13850).'},
+    {addr:'I0.3',tag:'-B1',short:'Sensor A',sym:'pnp',box:'PNP',box2:'dark-on',sig2:'BN/BU/BK',type:'Retro-reflective photoelectric sensor, 10–30 V DC, PNP, dark-on, M12 connector',norm:'0',why:'“Dark-on” means the output is 1 while the beam is blocked by a carton. Yellow LED on the sensor = output on.'},
+    {addr:'I0.4',tag:'-B2',short:'Sensor B',sym:'pnp',box:'PNP',box2:'dark-on',sig2:'BN/BU/BK',type:'Retro-reflective photoelectric sensor, same type as -B1',norm:'0',why:'Same wiring: brown +24 V, blue 0 V, black signal to the input.'},
+    {addr:'I0.5',tag:'-Q1',short:'Breaker OK',sym:'no',act:'aux',tA:'13',tB:'14',sig2:'aux NO',type:'Auxiliary contact 13-14 on motor protective breaker -Q1',norm:'1',why:'Closed while -Q1 is switched on. It opens when the breaker trips on overload, so the program can stop and show a fault.'},
+    {addr:'Q0.0',tag:'-K1',short:'Conveyor',sym:'coil',sig2:'→ -M1 0.37 kW',type:'Contactor coil A1-A2, 24 V DC, with suppressor diode',norm:'1 when running',why:'The CPU’s relay contact (2 A) only carries the coil current (~0.2 A). The motor current and 400 V stay in the power circuit.'},
+    {addr:'Q0.1',tag:'-P1',short:'RUN lamp',sym:'lamp',sig2:'green LED',type:'Pilot lamp, green LED 24 V DC',norm:'1 when running',why:'Tells everyone nearby that the belt may move.'},
+    {addr:'Q0.2',tag:'-P2',short:'STOP lamp',sym:'lamp',sig2:'red LED',type:'Pilot lamp, red LED 24 V DC',norm:'1 when stopped',why:'Stopped or tripped. Visible from across the hall.'}],
+  power:[{q:'-Q1',qType:'motor prot. breaker',qSet:'set to 1.0 A (motor FLA)',qAux:'aux 13-14 → I0.5',k:'-K1',coil:'Q0.0',m:'-M1',label:'belt conveyor',rating:'0.37 kW · 400 V · 1.0 A',load:'motor'}],
+  sol:'stopB',
+  walk:['<b>Run memory with self-hold.</b> START (I0.0) turns M0.0 on; the parallel M0.0 contact keeps it on after you let go. In series sit STOP I0.1 and E-stop I0.2 (both NC buttons, so they read 1 while healthy) and the breaker contact I0.5. If any of them goes to 0, M0.0 drops and stays off until START is pressed again. The machine never restarts on its own after a stop or a trip.',
+    '<b>Wait timer at B.</b> While a carton blocks sensor B (I0.4), on-delay timer T0 counts. After 2000 ms its output T0.Q becomes 1. When the carton leaves, the input drops and the timer resets to 0, ready for the next carton.',
+    '<b>Conveyor command.</b> Q0.0 (contactor -K1) is on when the system runs AND either nothing is at B (NC contact on I0.4) OR the wait is over (T0). So each carton stops at B for 2 s, then the belt restarts and carries it off.',
+    '<b>Green lamp</b> follows the run memory.',
+    '<b>Red lamp</b> shows stopped, and also a tripped motor breaker, so the operator sees the fault from a distance.'],
+  seq:['Main switch -Q0 on, 24 V supply -G1 “DC OK”, CPU in RUN. Red lamp on: the line is ready but stopped.',
+    'Operator checks the belt is clear and the E-stop is released, then presses START. -K1 pulls in (you hear it click), the belt runs, green lamp on.',
+    'A carton reaches B: -B2 switches, the belt stops for 2 s, then restarts.',
+    'STOP or E-stop: -K1 drops out at once, the belt stops (stop category 0), green off, red on.',
+    'Overload: -Q1 trips, I0.5 goes to 0, the system drops out and the red lamp lights. After the cause is fixed the breaker is reset by hand and START pressed again.'],
+  watch:[
+    ['danger','STOP is not isolation','Before reaching into the conveyor to clear a jam, switch off and padlock the main switch -Q0 (lockout/tagout). A stopped belt can start again from the program or a colleague’s button.'],
+    ['danger','E-stop behaviour','Releasing the E-stop must never restart the belt. START is always needed, which is why the self-hold drops on every stop.'],
+    ['warn','Sensor LEDs','Every photoelectric sensor has a yellow output LED (and often a green “stable” LED). Yellow on with no carton = dirty lens or reflector, misalignment, or bright light shining into the sensor.'],
+    ['warn','Contactor sounds','A chattering or humming contactor points to low 24 V or a loose coil wire. Check the PSU “DC OK” LED and measure across A1-A2.'],
+    ['info','Read the PLC LEDs','DI LED = voltage at the input terminal. DQ LED = the program’s command. DQ on but motor stopped? Look downstream: contactor, breaker, motor, cable.'],
+    ['info','Repeated trips','A breaker that trips again and again means a mechanical problem (jam, failing gearbox, belt too tight), not a setting to turn up.']],
+  faults:[
+    {id:'trip',t:'Motor overload trip (-Q1)',sym:'Belt stops, red lamp on, DI LED .5 off, DQ .0 off.',cause:'A jammed carton overloads the motor; the thermal element in -Q1 heats up and trips the breaker.',act:'Lock out, clear the jam, switch -Q1 back on (click “Clear fault”), then press START.',logic:'The run latch contains I0.5, so the program notices the trip and stays off. Without it the PLC would keep Q0.0 on and the belt would lurch back into motion the moment someone reset the breaker.'},
+    {id:'dirty',t:'Dirty reflector at B (-B2 stuck on)',sym:'DI LED .4 stays on with no carton. With the solution program the belt stops at B once, then never waits again.',cause:'Cardboard dust on the reflector or lens: the sensor “sees” a blocked beam all the time.',act:'Compare the sensor’s yellow LED with reality, clean lens and reflector, check alignment.',logic:'A plausibility check helps: if B stays blocked much longer than a carton needs to pass (say 10 s), raise a “check sensor -B2” alarm.'}]
+},
+b:{
+  plant:['A <b>sorting station</b> like this sits at the end of a production line or in a parcel hub: products of two sizes arrive mixed and must leave on different conveyors. Two belt conveyors (<b>-M1</b> infeed, <b>-M2</b> discharge) are driven through contactors <b>-K1</b>/<b>-K2</b> and motor breakers <b>-Q1</b>/<b>-Q2</b>.',
+    'The pusher is a <b>pneumatic cylinder -MM1</b> driven by a monostable 5/2 solenoid valve <b>-Y1</b>: coil on = air to the piston side = extend; coil off = a spring moves the valve back and the cylinder retracts. Two magnetic reed switches <b>-B3</b>/<b>-B4</b> clipped to the cylinder tube detect the magnet in the piston at each end position.',
+    'Height is measured with two retro-reflective light barriers at 0.12 m (<b>-B1</b>, every box) and 0.38 m (<b>-B2</b>, tall boxes only). A diffuse sensor <b>-B5</b> next to the pusher sees when a box is in front of the paddle. A stack light shows the state to the whole hall.'],
+  tags:'-B sensors, -Y solenoid valve coils, -MM pneumatic actuators, -K contactors, -P lamps (IEC 81346).',
+  io:[
+    {addr:'I0.0',tag:'-S1',short:'START',sym:'no',sig2:'NO 13-14',type:'Push button, green, NO',norm:'0',why:'Also acknowledges a pusher fault.'},
+    {addr:'I0.1',tag:'-S2',short:'STOP',sym:'nc',sig2:'NC 11-12',type:'Push button, red, NC',norm:'1',why:'Fail-safe NC wiring.'},
+    {addr:'I0.2',tag:'-S0',short:'E-STOP',sym:'estop',sig2:'NC, latching',type:'Emergency stop, 2 NC (PLC + safety relay)',norm:'1',why:'The safety relay also exhausts the compressed air (dump valve) so the cylinder cannot move.'},
+    {addr:'I0.3',tag:'-B1',short:'Low beam',sym:'pnp',box:'PNP',box2:'0.12 m',sig2:'every box',type:'Retro-reflective sensor 0.12 m above the belt',norm:'0',why:'Sees every box.'},
+    {addr:'I0.4',tag:'-B2',short:'High beam',sym:'pnp',box:'PNP',box2:'0.38 m',sig2:'tall boxes',type:'Retro-reflective sensor 0.38 m above the belt',norm:'0',why:'Only tall boxes reach this beam.'},
+    {addr:'I0.5',tag:'-B3',short:'Cyl. back',sym:'no',act:'reed',tA:'',tB:'',sig2:'reed switch',type:'Magnetic reed switch on cylinder tube, retracted end',norm:'1',why:'The belt may only run while the paddle is fully back.'},
+    {addr:'I0.6',tag:'-B4',short:'Cyl. front',sym:'no',act:'reed',tA:'',tB:'',sig2:'reed switch',type:'Magnetic reed switch, extended end',norm:'0',why:'Tells the program the push is complete.'},
+    {addr:'I0.7',tag:'-B5',short:'At pusher',sym:'pnp',box:'PNP',box2:'diffuse',sig2:'stop point',type:'Diffuse photoelectric sensor, range 0.7 m',norm:'0',why:'Defines where the box stops in front of the paddle.'},
+    {addr:'Q0.0',tag:'-K1',short:'Infeed belt',sym:'coil',sig2:'→ -M1',type:'Contactor coil 24 V DC',norm:'1 running',why:''},
+    {addr:'Q0.1',tag:'-Y1',short:'Pusher valve',sym:'valve',sig2:'5/2 monostable',type:'Solenoid coil 24 V DC 2.5 W on 5/2 valve',norm:'0',why:'Spring return: power lost = cylinder retracts (safe state).'},
+    {addr:'Q0.2',tag:'-K2',short:'Side belt',sym:'coil',sig2:'→ -M2',type:'Contactor coil 24 V DC',norm:'1 running',why:''},
+    {addr:'Q0.3',tag:'-P1',short:'Green',sym:'lamp',sig2:'stack light',type:'Stack light green + panel lamp',norm:'1 running',why:''},
+    {addr:'Q0.4',tag:'-P2',short:'Red',sym:'lamp',sig2:'stack light',type:'Stack light red + panel lamp',norm:'1 stopped',why:''},
+    {addr:'Q0.5',tag:'-P3',short:'Amber',sym:'lamp',sig2:'stack light',type:'Stack light amber',norm:'push / fault',why:''}],
+  power:[{q:'-Q1',qType:'motor prot. breaker',qSet:'set to 1.5 A',qAux:'',k:'-K1',coil:'Q0.0',m:'-M1',label:'infeed conveyor',rating:'0.55 kW · 400 V · 1.5 A',load:'motor'},
+         {q:'-Q2',qType:'motor prot. breaker',qSet:'set to 0.75 A',qAux:'',k:'-K2',coil:'Q0.2',m:'-M2',label:'side conveyor',rating:'0.25 kW · 400 V · 0.75 A',load:'motor'}],
+  sol:'sort',
+  walk:['<b>Run memory.</b> START, self-hold, NC STOP and E-stop in series, plus NC M0.3 so a pusher fault drops the line.',
+    '<b>Remember a tall box.</b> The high beam only sees tall boxes. When it does, Set M0.1. The box still has to travel to the pusher, so the information must be stored.',
+    '<b>Infeed belt.</b> Runs while the system is on and the cylinder is fully back (I0.5), unless a remembered tall box (M0.1) has arrived at the pusher (I0.7). The parallel branch NC M0.1 OR NC I0.7 is “not (tall box AND at pusher)”.',
+    '<b>Push.</b> Tall box at the pusher: Set the valve coil Q0.1. Set (not a plain coil) because the box leaves the sensor as soon as it moves.',
+    '<b>Watchdog timer.</b> If the valve is on but the front reed switch has not closed within 3 s, T1 runs out. That catches low air pressure, a stuck cylinder or a broken reed switch.',
+    '<b>Latch the fault.</b> T1 sets M0.3. A latched fault stays until a person acknowledges it.',
+    '<b>Retract.</b> Reset Q0.1 when the front limit is reached, when the system is switched off, or on the watchdog. The spring then returns the cylinder.',
+    '<b>Forget the tall box</b> after a completed push, or after a fault.',
+    '<b>Acknowledge.</b> START clears M0.3. On the next scan the run latch can start again.',
+    '<b>Side belt</b> runs with the system.',
+    '<b>Green</b> = running.',
+    '<b>Red</b> = stopped.',
+    '<b>Amber</b> = cylinder not at home, or pusher fault.'],
+  seq:['Air supply on (6 bar on the regulator gauge), main switch on, CPU in RUN. Cylinder rests at the back: -B3 LED on.',
+    'START: both belts run, green light.',
+    'Low box: passes both beams (only the low one switches), passes the pusher and exits at the end.',
+    'Tall box: switches both beams, M0.1 is stored. At -B5 the infeed belt stops, -Y1 is energised, the cylinder pushes the box onto the side belt, -B4 confirms, the valve drops, the cylinder returns, -B3 confirms, the belt restarts.',
+    'If the push does not complete within 3 s: pusher fault, line stops, amber + red. Fix the cause, press START to acknowledge and restart.'],
+  watch:[
+    ['danger','Stored energy in pneumatics','Pressing E-stop does not make a cylinder safe if air is still in it. Before working near the pusher, close and vent the air supply (lockout valve) and check the gauge reads 0 bar.'],
+    ['danger','Pinch point','Never put a hand between paddle and box. The cylinder moves faster than you can react.'],
+    ['warn','Reed switches','Their small LED must light at each end position. Reed switches slip on the tube after vibration; adjust them so they switch a few mm before the end stop.'],
+    ['warn','Air pressure','Slow or weak pushes = low pressure, a leaking hose or a dirty silencer. Check the regulator gauge first.'],
+    ['info','Box spacing','The emitter keeps a minimum gap. If boxes bunch together, a tall box can be remembered for the wrong carton: watch the amber light and the wrong-exit counter.']],
+  faults:[
+    {id:'air',t:'Low air pressure',sym:'Pusher moves slowly and stops halfway; -B4 never switches. After 3 s amber + red, line stops.',cause:'Compressor off, regulator turned down, or a leaking hose: not enough force to complete the stroke.',act:'Check the pressure gauge (6 bar), find leaks by listening, then clear the fault and press START.',logic:'The 3 s watchdog (T1) turns a silent hang into a clear alarm. Without it the line would wait forever with the valve on.'},
+    {id:'beam',t:'High beam misaligned (-B2 never switches)',sym:'Tall boxes go to the low exit; the “wrong exit” counter climbs. DI LED .4 never lights.',cause:'Sensor knocked, reflector moved, or connector unplugged.',act:'Check the sensor’s LEDs and alignment with a tall box held in the beam.',logic:'A cross-check helps: a box that blocks the low beam for longer than a low box would need suggests a tall box the high beam missed.'}]
+},
+c:{
+  plant:['This is a <b>buffer tank</b> as found in a water treatment plant, a boiler feed system or a food factory: water flows in from a supply header and is drawn off by a consumer. The PLC keeps the level in a band with an on/off inlet valve.',
+    'Level is measured continuously by an ultrasonic transmitter <b>LT-101</b> mounted on the roof: it times the echo from the water surface and outputs 0–10 V (0–100 %). The S7-1200’s built-in analog input converts that to 0…27648.',
+    'Two independent capacitive point switches, <b>LSH-102</b> (high) and <b>LSL-103</b> (low), are a second layer of protection: they still work if the transmitter fails. Inlet and drain valves <b>XV-101</b>/<b>XV-102</b> are normally closed solenoid valves: with no power they close, which is their safe position.'],
+  tags:'Instrument tags follow ISA 5.1 (LT level transmitter, LSH level switch high, XV on/off valve). Electrical devices keep IEC 81346 tags (-S, -P).',
+  io:[
+    {addr:'I0.0',tag:'-S1',short:'START',sym:'no',sig2:'NO',type:'Push button, NO',norm:'0',why:''},
+    {addr:'I0.1',tag:'-S2',short:'STOP',sym:'nc',sig2:'NC',type:'Push button, NC',norm:'1',why:''},
+    {addr:'I0.2',tag:'-S0',short:'E-STOP',sym:'estop',sig2:'NC',type:'Emergency stop',norm:'1',why:''},
+    {addr:'I0.3',tag:'LSH-102',short:'Level high',sym:'pnp',box:'LSH',box2:'90 %',sig2:'capacitive',type:'Capacitive level switch at 90 %, PNP',norm:'0',why:'Independent of LT-101: a second, simpler measurement that still works if the transmitter fails.'},
+    {addr:'I0.4',tag:'LSL-103',short:'Level low',sym:'pnp',box:'LSL',box2:'10 %',sig2:'capacitive',type:'Capacitive level switch at 10 %, PNP',norm:'0',why:'Protects against running the tank dry.'},
+    {addr:'I0.5',tag:'-S3',short:'DRAIN',sym:'no',sig2:'NO',type:'Push button, blue, NO',norm:'0',why:'Hold-to-run: draining stops when released.'},
+    {addr:'IW64',tag:'LT-101',short:'Level 0–100 %',isa:['LT','101'],sig2:'0–10 V',type:'Ultrasonic level transmitter, 3-wire, 0–10 V',norm:'0…27648',why:'Raw = level % × 276.48. 40 % → 11059, 70 % → 19354.'},
+    {addr:'Q0.0',tag:'XV-101',short:'Inlet valve',sym:'valve',sig2:'NC, 24 V 8 W',type:'Solenoid valve coil 24 V DC, normally closed',norm:'1 filling',why:'Coil current ~0.35 A, within the relay rating, so no contactor is needed.'},
+    {addr:'Q0.1',tag:'XV-102',short:'Drain valve',sym:'valve',sig2:'NC, 24 V 8 W',type:'Solenoid valve coil 24 V DC, normally closed',norm:'0',why:''},
+    {addr:'Q0.2',tag:'-P1',short:'RUN',sym:'lamp',sig2:'green',type:'Pilot lamp',norm:'1',why:''},
+    {addr:'Q0.3',tag:'-P2',short:'ALARM',sym:'lamp',sig2:'red',type:'Pilot lamp',norm:'0',why:''}],
+  power:[],
+  pid:'tank',
+  sol:'level',
+  walk:['<b>Run memory.</b> START with self-hold; STOP and E-stop (NC) in series.',
+    '<b>Wire-break check.</b> A 0–10 V input cannot tell “empty tank” from “broken cable”: both read 0. Below 200 counts the program assumes the transmitter has failed and sets M0.3. (With a 4–20 mA transmitter a broken wire reads 0 mA, well below the 4 mA “live zero”, and is detected for certain.)',
+    '<b>Open the inlet</b> (Set Q0.0) at or below 40 %, but only while running, with the high switch not tripped and the sensor healthy.',
+    '<b>Close the inlet</b> (Reset Q0.0) at 70 %, when stopped, when LSH-102 trips, or on a sensor fault. The gap between 40 % and 70 % is the hysteresis: the valve switches a few times an hour instead of every second, which saves the valve.',
+    '<b>Drain</b> only while the button is held and the low switch is not tripped.',
+    '<b>Green lamp</b> = running.',
+    '<b>Alarm lamp</b> on high level, low level, or a failed transmitter.'],
+  seq:['Supply header pressurised, consumer valve HV-103 set. START: green lamp.',
+    'Level falls to 40 %: XV-101 opens, you hear the solenoid click and the water flows in.',
+    'Level rises to 70 %: XV-101 closes.',
+    'If the level ever reaches 90 %, LSH-102 closes the inlet regardless of the analog value and the alarm lamp lights.',
+    'DRAIN held: XV-102 opens, but closes at 10 % so the outlet pump downstream never runs dry.'],
+  watch:[
+    ['danger','Overflow','A tank that overflows can flood electrical equipment and, with chemicals, people. Never bypass the high switch to “keep production going”.'],
+    ['warn','Transmitter health','Compare LT-101 with the sight glass or the level scale. A frozen value, or one that jumps, means a failed sensor, foam or condensation on the ultrasonic head.'],
+    ['warn','Valve vs. level','If the level keeps rising while the inlet valve is commanded closed, the valve is passing (stuck or leaking seat). Close the manual isolation valve upstream.'],
+    ['info','Scaling','In TIA Portal NORM_X and SCALE_X convert 0…27648 into engineering units (%). Here we compare raw counts directly.']],
+  faults:[
+    {id:'wire',t:'Transmitter cable broken (LT-101)',sym:'IW64 drops to 0 (reads 0 % although the tank is half full).',cause:'Cable cut, connector corroded, or transmitter lost its supply.',act:'Check the transmitter’s display and supply voltage, measure 0–10 V at AI0 against 2M, repair the cable.',logic:'Without the wire-break check the program would think the tank is empty and fill it until it overflows. The solution stops filling and raises the alarm; LSH-102 is the last line of defence.'},
+    {id:'stuck',t:'Inlet valve stuck open (XV-101)',sym:'Level keeps rising even though Q0.0 is 0 and the DQ LED is off. LSH-102 trips at 90 %, then the tank overflows.',cause:'Dirt on the valve seat or a broken spring: the valve no longer closes mechanically.',act:'Close the manual isolation valve, open the drain, replace the valve. The PLC cannot fix a mechanical fault.',logic:'A discrepancy alarm catches it early: valve commanded closed but level still rising for 10 s → “XV-101 not closing”.'}]
+},
+d:{
+  plant:['A <b>cold room</b> (walk-in chiller) for food storage, as in a supermarket, a hospital kitchen or a food factory. It must stay between 0 °C and +5 °C, and the temperature is usually logged for food safety (HACCP).',
+    'The refrigerant circuit: the <b>compressor -M1</b> (2.2 kW, via contactor -K1) pumps refrigerant vapour to the air-cooled <b>condenser</b>, where fan <b>-M2</b> blows the heat away outside. The liquid passes an <b>expansion valve</b> into the <b>evaporator</b> inside the room, where it boils and absorbs heat; fans <b>-M3</b> push room air through the coil.',
+    'Moisture from the air freezes on the cold coil. Ice blocks the airflow, so every so often the controller runs a <b>defrost</b>: compressor off, electric heater <b>E1</b> on until the coil is clearly above 0 °C. Safety: a high-pressure switch <b>PSH-203</b> is wired in series with the compressor contactor (hard-wired) and also reported to the PLC.',
+    'Time runs faster here than in a real plant: the 8 s restart delay is minutes in reality, and a real chiller defrosts every 6–8 hours, not every 90 s.'],
+  tags:'ISA 5.1 instrument tags (TT temperature transmitter, PSH pressure switch high, ZS position switch) with IEC 81346 electrical tags (-K contactors, -M motors, -E heater).',
+  io:[
+    {addr:'I0.0',tag:'-S1',short:'START',sym:'no',sig2:'NO',type:'Push button, NO',norm:'0',why:''},
+    {addr:'I0.1',tag:'-S2',short:'STOP',sym:'nc',sig2:'NC',type:'Push button, NC',norm:'1',why:''},
+    {addr:'I0.2',tag:'-S0',short:'E-STOP',sym:'estop',sig2:'NC',type:'Emergency stop',norm:'1',why:''},
+    {addr:'I0.3',tag:'ZS-204',short:'Door open',sym:'no',act:'door',tA:'',tB:'',sig2:'door switch',type:'Door position switch, closes when the door opens',norm:'0',why:'Stops the evaporator fans with the door open, so they do not blow warm air in.'},
+    {addr:'I0.4',tag:'PSH-203',short:'HP OK',sym:'nc',act:'press',sig2:'NC, 22 bar',type:'High-pressure switch, NC, opens above 22 bar',norm:'1',why:'Hard-wired in the compressor contactor coil circuit as well, so it protects even if the PLC fails.'},
+    {addr:'I0.5',tag:'-S3',short:'DEFROST',sym:'no',sig2:'NO',type:'Push button, amber, NO',norm:'0',why:'Manual defrost request.'},
+    {addr:'IW64',tag:'TT-201',short:'Room temp',isa:['TT','201'],sig2:'0–10 V',type:'Pt100 with head transmitter, −30…+20 °C = 0–10 V',norm:'≈ 17695 (+2 °C)',why:'Raw = (°C + 30) ÷ 50 × 27648.'},
+    {addr:'IW66',tag:'TT-202',short:'Coil temp',isa:['TT','202'],sig2:'0–10 V',type:'Pt100 on the evaporator fins, same range',norm:'below 0 °C',why:'Ends the defrost at +8 °C (21012).'},
+    {addr:'Q0.0',tag:'-K1',short:'Compressor',sym:'coil',sig2:'→ -M1 2.2 kW',type:'Contactor coil, in series with PSH-203',norm:'cycles',why:'Short-cycling overheats the motor windings and washes oil out of the compressor.'},
+    {addr:'Q0.1',tag:'-K2',short:'Cond. fan',sym:'coil',sig2:'→ -M2',type:'Contactor coil',norm:'with -K1',why:'No condenser airflow = rising discharge pressure = HP trip.'},
+    {addr:'Q0.2',tag:'-K3',short:'Evap. fans',sym:'coil',sig2:'→ -M3',type:'Contactor coil',norm:'1',why:''},
+    {addr:'Q0.3',tag:'-K4',short:'Defrost htr',sym:'coil',sig2:'→ -E1 1.5 kW',type:'Contactor coil',norm:'0',why:'Never together with the compressor.'},
+    {addr:'Q0.4',tag:'-P2',short:'ALARM',sym:'lamp',sig2:'red',type:'Pilot lamp / buzzer',norm:'0',why:''},
+    {addr:'Q0.5',tag:'-P1',short:'RUN',sym:'lamp',sig2:'green',type:'Pilot lamp',norm:'1',why:''}],
+  power:[{q:'-Q1',qType:'motor prot. breaker',qSet:'set to 4.8 A',qAux:'',k:'-K1',coil:'Q0.0 + PSH-203',m:'-M1',label:'compressor',rating:'2.2 kW · 400 V · 4.8 A',load:'motor'},
+         {q:'-Q2',qType:'motor prot. breaker',qSet:'set to 0.7 A',qAux:'',k:'-K2',coil:'Q0.1',m:'-M2',label:'condenser fan',rating:'0.25 kW · 400 V',load:'motor'},
+         {q:'-Q3',qType:'motor prot. breaker',qSet:'set to 0.4 A',qAux:'',k:'-K3',coil:'Q0.2',m:'-M3',label:'evaporator fans',rating:'2 × 0.06 kW · 400 V',load:'motor'},
+         {q:'-F4',qType:'MCB C10, 3-pole',qSet:'',qAux:'',k:'-K4',coil:'Q0.3',m:'-E1',label:'defrost heater',rating:'3 × 0.5 kW · 400 V',load:'heater'}],
+  pid:'fridge',
+  sol:'full',
+  walk:['<b>Run memory</b>: START with self-hold, NC STOP and E-stop.',
+    '<b>Cooling demand on</b> at +4 °C (18801 counts): Set M0.1.',
+    '<b>Cooling demand off</b> at +2 °C (17695). Between +2 and +4 °C nothing changes: that 2 °C band is the thermostat hysteresis.',
+    '<b>Restart delay.</b> T0 counts while the compressor is off. Only when it has been off for 8 s may it start again (anti-short-cycle).',
+    '<b>Defrost clock.</b> T2 counts 90 s of operation without a defrost.',
+    '<b>Start a defrost</b> (Set M0.2) when the clock runs out or DEFROST is pressed (rising edge, so holding the button does not repeat it).',
+    '<b>Defrost safety time.</b> T3 limits a defrost to 25 s in case the coil sensor fails.',
+    '<b>End the defrost</b> when the coil reaches +8 °C (21012), on the safety time, or when the plant stops.',
+    '<b>Compressor.</b> Needs: system on, cooling demand, no defrost, pressure OK (I0.4), and either already running or the restart delay finished. The parallel branch “Q0.0 OR T0” keeps a running compressor running while T0 resets.',
+    '<b>Condenser fan</b> runs with the compressor.',
+    '<b>Evaporator fans</b> run while on, but stop with the door open and during defrost (no blowing warm air or meltwater).',
+    '<b>Defrost heater</b> follows M0.2. Since the compressor rung contains NC M0.2, heater and compressor can never run together.',
+    '<b>Door timer.</b> T1 starts when the door opens.',
+    '<b>Sensor check.</b> A room reading at the very bottom of the range (≤ 300 counts, about −29.5 °C) is impossible in a chiller: treat it as a broken sensor wire.',
+    '<b>Alarm</b>: door open over 10 s, high-pressure trip, or sensor fault.',
+    '<b>Green lamp</b> = running.'],
+  seq:['START: green lamp. Evaporator fans start. If the room is above +4 °C, the compressor starts after the restart delay, the condenser fan with it.',
+    'Room reaches +2 °C: compressor and condenser fan stop, evaporator fans keep the air moving.',
+    'Room warms to +4 °C: the cycle repeats. Each cycle should last minutes, never seconds.',
+    'Defrost: compressor off, fans off, heater on. The ice melts (the coil holds at 0 °C while it melts), then the coil warms to +8 °C and the heater stops. Cooling resumes.',
+    'Door left open: fans stop, after 10 s the alarm lamp lights.'],
+  watch:[
+    ['danger','Person trapped inside','A real cold room has an inside release handle and an alarm push button inside. Never block the door from outside.'],
+    ['danger','Refrigerant and pressure','The circuit is at 15–25 bar. Only certified refrigeration technicians open it. A PSH trip means investigate, not reset and walk away.'],
+    ['warn','Short-cycling','A compressor that starts every few seconds destroys itself. Look at the start counter: more than about 6–10 starts per hour on a real unit is a warning.'],
+    ['warn','Ice build-up','A white, blocked coil and falling cooling performance mean defrost is not working: check the heater, its contactor and the coil sensor.'],
+    ['warn','Condenser','Dirty condenser fins or a dead condenser fan cause high pressure and trips, especially on hot days.'],
+    ['info','Food safety','Room temperature is logged (HACCP). Above +5 °C for too long, the stock may have to be discarded.']],
+  faults:[
+    {id:'cfan',t:'Condenser fan failed (-M2)',sym:'Fan stops turning, pressure rises, PSH-203 trips at 22 bar: compressor stops, alarm lamp, room warms.',cause:'Fan motor failed, its breaker tripped, or the blades are blocked.',act:'Check -Q2 and the fan motor. Do not keep resetting the high-pressure trip.',logic:'The hard-wired PSH protects the compressor even if the program is wrong. The program reports it (I0.4 in the alarm network).'},
+    {id:'tt',t:'Room sensor wire broken (TT-201)',sym:'IW64 reads 0 (shown as −30 °C). The program sees no cooling demand, so the room slowly warms to the outside temperature.',cause:'Broken sensor cable or a failed head transmitter.',act:'Check the transmitter supply and the 0–10 V signal at AI0, repair the wiring.',logic:'The sensor check network turns an “impossible” reading into an alarm. Better plants use 4–20 mA so a broken wire is unmistakable.'}]
+}
+};
 
 /* ================= app shell: scenes, tabs, I/O, task pane, loop ================= */
 const SCN={cab:CAB,a:SCENE_A,b:SCENE_B,c:SCENE_C,d:SCENE_D}, ORDER=['cab','a','b','c','d'];
@@ -2536,7 +2972,7 @@ function setScene(id){
   plc.forceI.fill(null); plc.forceQ.fill(null); plc.field.fill(0); plc.AI=[0,0]; plc.out.fill(0); plc.Q.fill(0); plc.wasRun=false; plc.scans=0;
   LD.sel=null; LD.hist=[];
   $$('#sceneNav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.scene===id?'true':'false'));
-  $('#tabTask').hidden=!s.tabs.includes('task'); $('#tabWiring').hidden=!s.tabs.includes('wiring');
+  $('#tabTask').hidden=!s.tabs.includes('task'); $('#tabWiring').hidden=!s.tabs.includes('wiring'); $('#tabLearn').hidden=!s.tabs.includes('learn');
   const fac=s.id!=='cab';
   $('#labelsBtn').hidden=!fac; $('#playBtn').disabled=!fac; $('#speedSel').disabled=!fac; $('#resetBtn').textContent='Reset';
   $('#help').textContent=s.help;
@@ -2545,14 +2981,15 @@ function setScene(id){
   $('#tip').hidden=true; labelLayer.innerHTML='';
   s.enter();
   setTab(s.tabs.includes(app.tab)?app.tab:s.defaultTab);
-  renderLadder(); buildIOTable(); renderTaskPane(); extPublish(); renderExt();
+  renderLadder(); buildIOTable(); renderTaskPane(); renderLearnPane(); extPublish(); renderExt();
   if(fac&&!store.get('plcfab-seen-'+id,false)){ store.set('plcfab-seen-'+id,true); setTimeout(()=>{ if(app.scene===s) toast('Press START on the operator panel (or in the Task tab) to run the line.'); },600); }
 }
 /* tabs */
 function setTab(t){
   app.tab=t;
   $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t?'true':'false'));
-  ['task','wiring','program','io'].forEach(id=>$('#pane-'+id).hidden=id!==t);
+  ['task','learn','wiring','program','io'].forEach(id=>$('#pane-'+id).hidden=id!==t);
+  if(t==='learn') updateLearn();
   applyWide();
   if(t==='program') updateLadderLive();
   if(t==='io') updateIOTable(true);
@@ -2700,10 +3137,91 @@ function frame(now){
   if(now-uiT>120){ uiT=now; updateTop();
     if(app.tab==='program') updateLadderLive();
     else if(app.tab==='io') updateIOTable(ioDirty), ioDirty=false;
-    else if(app.tab==='task') updateTaskPane(); }
+    else if(app.tab==='task') updateTaskPane();
+    else if(app.tab==='learn') updateLearn(); }
   renderer.render(s.scene,camera);
   requestAnimationFrame(frame);
 }
+
+/* ================= Learn pane ================= */
+let learnSheet='ctrl';
+const SHEETS={ctrl:'Control circuit',power:'Power circuit',pid:'P&ID'};
+function sheetSVG(Lr,k){ if(k==='ctrl') return ctrlSVG(Lr); if(k==='power') return powerSVG(Lr); if(k==='pid') return Lr.pid==='tank'?pidTank():Lr.pid==='fridge'?pidFridge():''; return ''; }
+function renderLearnPane(){
+  const s=app.scene, host=$('#pane-learn'), Lr=LEARN[s.id];
+  if(!Lr){ host.innerHTML=''; return; }
+  const sheets=['ctrl'].concat(Lr.power.length?['power']:[]).concat(Lr.pid?['pid']:[]);
+  if(!sheets.includes(learnSheet)) learnSheet='ctrl';
+  const sol=s.examples[Lr.sol];
+  const ioRow=r=>{ const t=s.tags.find(x=>x.addr===r.addr); return `<tr class="${t&&t.anchor?'fly':''}" data-addr="${r.addr}"><td class="a">%${r.addr}</td><td class="t">${esc(r.tag)}</td><td>${esc(r.type)}<small>${esc(r.why||'')}</small></td><td class="a">${esc(r.norm)}</td></tr>`; };
+  host.innerHTML=`
+  <section class="card learn"><p class="eyebrow">Learn · Scene ${esc(s.num)}</p><h3 class="scene-title">How this works in a real plant</h3>${Lr.plant.map(p=>`<p>${p}</p>`).join('')}<p class="hint">${esc(Lr.tags)}</p></section>
+  <section class="card"><h2>Drawings <small>click to enlarge</small></h2>
+    <div class="sheetbar">${sheets.map(k=>`<button type="button" data-sheet="${k}" class="${k===learnSheet?'on':''}">${SHEETS[k]}</button>`).join('')}<span class="sp"></span><button type="button" id="sheetBig">Open large</button><button type="button" id="sheetPng">Download PNG</button><button type="button" id="sheetSvg">SVG</button></div>
+    <div class="sheet" id="sheetView" title="Click to enlarge">${sheetSVG(Lr,learnSheet)}</div>
+    <p class="hint">${learnSheet==='ctrl'?'Follow one input from the red +24 V rail through the button or sensor into the CPU, through its input circuit to 1M and back to 0 V. Outputs: 24 V from 1L through the relay contact inside the CPU, through the coil or lamp, back to 0 V.':learnSheet==='power'?'The 400 V side: main switch, motor protective breaker (overload + short-circuit protection), contactor main contacts, motor. The PLC only touches the contactor coil.':'Process view: pipes, vessels and instruments with their tags. Dashed lines are the electrical signals that go to the PLC.'}</p></section>
+  <section class="card"><h2>I/O list</h2><p class="hint">What each PLC channel is wired to, its normal state, and why. Click a row with a 3D label to fly to the device.</p>
+    <div class="tblwrap"><table class="iol"><thead><tr><th>Address</th><th>Tag</th><th>Device · why it is wired this way</th><th>Normal</th></tr></thead><tbody>${Lr.io.map(ioRow).join('')}</tbody></table></div></section>
+  <section class="card"><h2>How the program works</h2>
+    <p class="hint">Every cycle (about 8 ms here) the CPU 1) copies all inputs into the process image, 2) runs the networks from top to bottom, 3) writes the output image to the terminals. The walkthrough follows the example “${esc(sol.name)}”.</p>
+    <div class="row"><button type="button" class="primary" id="loadSol">Load this program into the PLC</button></div>
+    <ol class="walk">${Lr.walk.map((w,i)=>`<li><span class="n">NW ${i+1}</span><span>${w}</span><button type="button" data-nw="${i}">Show</button></li>`).join('')}</ol></section>
+  <section class="card"><h2>Sequence of operation</h2><ol class="seq">${Lr.seq.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></section>
+  <section class="card"><h2>What the operator watches</h2><ul class="wl">${Lr.watch.map(([l,t,d])=>`<li class="${l}"><b>${esc(t)}</b>${esc(d)}</li>`).join('')}</ul></section>
+  <section class="card"><h2>Fault practice</h2><p class="hint">Inject a real-world fault, watch what the plant and the PLC do, then find it the way a technician would: LEDs on the CPU, the I/O tags tab, the ladder.</p><div class="pane" id="faultList"></div></section>`;
+  renderFaults();
+  host.querySelectorAll('[data-sheet]').forEach(b=>b.onclick=()=>{ learnSheet=b.dataset.sheet; renderLearnPane(); });
+  const openBig=()=>openDiagram(SHEETS[learnSheet]+' · '+s.name,sheetSVG(Lr,learnSheet));
+  $('#sheetBig').onclick=openBig; $('#sheetView').onclick=openBig;
+  const dlName=()=>fileSlug(s.name+' '+SHEETS[learnSheet]);
+  $('#sheetPng').onclick=()=>downloadDiagram(sheetSVG(Lr,learnSheet),dlName(),'png');
+  $('#sheetSvg').onclick=()=>downloadDiagram(sheetSVG(Lr,learnSheet),dlName(),'svg');
+  $('#loadSol').onclick=()=>{ mutate(()=>{ plc.prog=normProg(progClone(sol.prog)); LD.sel=null; }); toast(`Loaded “${sol.name}” into the PLC.`); };
+  host.querySelectorAll('[data-nw]').forEach(b=>b.onclick=()=>showNetwork(+b.dataset.nw,sol));
+  host.querySelectorAll('tr.fly').forEach(tr=>tr.onclick=()=>{ const t=s.tags.find(x=>x.addr===tr.dataset.addr); if(t&&t.anchor){ const a=typeof t.anchor==='function'?t.anchor():t.anchor; const dir=camera.position.clone().sub(controls.target).normalize(); flyCam(a.clone(),a.clone().addScaledVector(dir,2.2),900); } });
+}
+function renderFaults(){
+  const s=app.scene, Lr=LEARN[s.id], el=$('#faultList'); if(!el) return;
+  el.innerHTML=Lr.faults.map(f=>{ const on=!!s.W.faults[f.id]; return `<div class="fault ${on?'active':''}"><h4>${esc(f.t)}<button type="button" data-fault="${f.id}" class="${on?'':'primary'}">${on?'Clear fault':'Inject'}</button></h4>
+    <dl><dt>Symptom</dt><dd>${esc(f.sym)}</dd><dt>Cause</dt><dd>${esc(f.cause)}</dd><dt>Operator</dt><dd>${esc(f.act)}</dd><dt>Program</dt><dd>${esc(f.logic)}</dd></dl></div>`; }).join('');
+  el.querySelectorAll('[data-fault]').forEach(b=>b.onclick=()=>{ const id=b.dataset.fault; s.W.faults[id]=!s.W.faults[id]; const f=Lr.faults.find(x=>x.id===id); toast(s.W.faults[id]?`Fault injected: ${f.t}.`:`Fault cleared: ${f.t}.`,s.W.faults[id]); renderFaults(); });
+}
+let learnSig='';
+function updateLearn(){ const s=app.scene; if(!s||!LEARN[s.id]) return; const sig=JSON.stringify(s.W.faults); if(sig!==learnSig){ learnSig=sig; renderFaults(); } }
+function showNetwork(i,sol){
+  const same=JSON.stringify(progClone(plc.prog))===JSON.stringify(normProg(progClone(sol.prog)));
+  if(!same){ toast('The PLC is running a different program. Press “Load this program into the PLC” to follow along.'); }
+  setTab('program');
+  if(same&&plc.prog.rungs[i]){ LD.sel={r:i,k:'o'}; renderLadder(); const n=$('#nets').children[i]; if(n&&n.scrollIntoView) n.scrollIntoView({block:'center'}); }
+}
+/* ---- diagram downloads: platform save prompt when published, plain browser download when opened as a file ---- */
+let dlCap; const dlReady=(window.claude&&window.claude.use)?window.claude.use('downloads').then(d=>{dlCap=d;return d;}).catch(()=>{dlCap=null;return null;}):Promise.resolve(null);
+function fileSlug(t){ return 'eros-lab-'+String(t).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+async function saveBlob(blob,filename){
+  const d=dlCap!==undefined?dlCap:await Promise.race([dlReady,new Promise(r=>setTimeout(()=>r(null),1500))]);
+  if(d){ try{ await d.save({filename,data:blob}); toast('Saved '+filename+'.'); return; }
+    catch(e){ const c=e&&e.code; if(c==='declined') return; if(c==='rate_limited'){ toast('A save prompt is already open.'); return; }
+      if(!['unavailable','not_granted','capability_disabled','capability_removed'].includes(c)){ toast('Could not save the drawing ('+(c||'error')+').',true); return; } } }
+  const url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+  toast('Downloading '+filename+'.');
+}
+function downloadDiagram(svg,name,fmt){
+  if(fmt==='svg'){ saveBlob(new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n'+svg],{type:'image/svg+xml'}),name+'.svg'); return; }
+  const m=/viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg), W=m?+m[1]:1200, H=m?+m[2]:800, k=3;
+  const img=new Image(), url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+  img.onload=()=>{ const c=document.createElement('canvas'); c.width=Math.round(W*k); c.height=Math.round(H*k);
+    const g=c.getContext('2d'); g.fillStyle=SV.paper; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+    c.toBlob(b=>{ if(b) saveBlob(b,name+'.png'); else toast('Could not render the PNG. Try SVG.',true); },'image/png'); };
+  img.onerror=()=>{ URL.revokeObjectURL(url); toast('Could not render the PNG. Try SVG.',true); };
+  img.src=url;
+}
+let diagCur=null;
+function openDiagram(title,svg){ diagCur={title,svg}; $('#diagTitle').textContent=title; $('#diagBody').innerHTML=svg; $('#diagModal').hidden=false; $('#diagClose').focus(); }
+$('#diagClose').onclick=()=>{ $('#diagModal').hidden=true; };
+$('#diagPng').onclick=()=>{ if(diagCur) downloadDiagram(diagCur.svg,fileSlug(diagCur.title),'png'); };
+$('#diagSvg').onclick=()=>{ if(diagCur) downloadDiagram(diagCur.svg,fileSlug(diagCur.title),'svg'); };
+$('#diagModal').addEventListener('click',e=>{ if(e.target.id==='diagModal') $('#diagModal').hidden=true; });
+window.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('#diagModal').hidden) $('#diagModal').hidden=true; });
 
 loadPLCModel();
 resize();
@@ -2711,9 +3229,11 @@ setScene(SCN[prefs.scene]?prefs.scene:'a');
 fitted=true; app.scene.fitView();
 requestAnimationFrame(frame);
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{ try{ CAB.refreshFaces(); }catch(e){} });
+if(window.__erosEmbedded){ try{ document.documentElement.classList.add('embedded'); const st=document.createElement('style'); st.textContent='.embedded .brand{display:none}.embedded .app{padding-block:8px 10px}'; document.head.appendChild(st); EXT.mode='direct'; setExt(true); setTab('io'); window.dispatchEvent(new Event('resize')); }catch(e){} }
 window.__plcfab={app,plc,SCN,setScene,setTab,stepWorld,normProg,progClone,plcModel,EXT,setExt,plcScan,extInfo};
 
 })();
 </script>
+
 
 </body></html>
